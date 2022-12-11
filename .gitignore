@@ -1,0 +1,4 @@
+*.atom
+*.rss
+*.xml
+/compiled
