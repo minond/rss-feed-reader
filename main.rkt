@@ -16,10 +16,17 @@
       (parse-datetime str format)))])
     (or (parse "eee, d MMM y HH:mm:ss Z")
         (parse "eee,  d MMM y HH:mm:ss Z")
-        (parse "eee, d MMM y HH:mm:ss 'GMT'"))))
+        (parse "eee, d MMM y HH:mm:ss 'GMT'")
+        (parse "y-M-d HH:mm:ss"))))
 
 (define (list->string xs [sep " "])
   (string-join (map ~a xs) sep))
+
+(define (integer->boolean i)
+  (eq? i 1))
+
+(define (boolean->integer b)
+  (if b 1 0))
 
 
 (struct feed (id link title enabled articles))
@@ -123,6 +130,8 @@
     archived boolean
   )")
 (define stmt/article-exists (prepare *conn* "select id from articles where id = ?"))
+(define stmt/article-insert (prepare *conn* "insert into articles (feed_id, link, title, date, content, archived) values (?, ?, ?, ?, ?, ?) returning id"))
+(define stmt/article-select-by-feedid (prepare *conn* "select id, feed_id, link, title, date, content, archived from articles where feed_id = ?"))
 
 
 (define (setup! conn)
@@ -140,7 +149,7 @@
     f
     (let* ([url (feed-link f)]
            [title (feed-title f)]
-           [enabled (if (feed-enabled f) 1 0)]
+           [enabled (boolean->integer (feed-enabled f))]
            [id (query-value conn stmt/feed-insert url title enabled)])
       (feed id url title (feed-enabled f) (feed-articles f)))))
 
@@ -150,5 +159,28 @@
            (feed (vector-ref row 0)
                  (vector-ref row 1)
                  (vector-ref row 2)
-                 (vector-ref row 3)
+                 (integer->boolean (vector-ref row 3))
                  '())) rows)))
+
+(define (insert-article conn a f)
+  (if (record-exists conn stmt/article-exists (article-id a))
+    a
+    (let* ([feedid (feed-id f)]
+           [url (article-link a)]
+           [title (article-title a)]
+           [date (~t (article-date a) "y-M-d HH:mm:ss")]
+           [content (article-content a)]
+           [archived (boolean->integer (article-archived a))]
+           [id (query-value conn stmt/article-insert feedid url title date content archived)])
+      (article id feedid url title date content (article-archived a)))))
+
+(define (load-articles-by conn #:feedid feedid)
+  (let ([rows (query-rows conn stmt/article-select-by-feedid feedid)])
+    (map (lambda (row)
+           (article (vector-ref row 0)
+                    (vector-ref row 1)
+                    (vector-ref row 2)
+                    (vector-ref row 3)
+                    (string->datetime (vector-ref row 4))
+                    (vector-ref row 5)
+                    (integer->boolean (vector-ref row 6)))) rows)))
