@@ -115,7 +115,7 @@
     title text,
     enabled boolean
   )")
-(define stmt/feed-exists (prepare *conn* "select id from feeds where id = ?"))
+(define stmt/feed-exists (prepare *conn* "select id from feeds where link = ?"))
 (define stmt/feed-insert (prepare *conn* "insert into feeds (link, title, enabled) values (?, ?, ?) returning id"))
 (define stmt/feed-select (prepare *conn* "select id, link, title, enabled from feeds"))
 
@@ -129,7 +129,7 @@
     content text,
     archived boolean
   )")
-(define stmt/article-exists (prepare *conn* "select id from articles where id = ?"))
+(define stmt/article-exists (prepare *conn* "select id from articles where link = ?"))
 (define stmt/article-insert (prepare *conn* "insert into articles (feed_id, link, title, date, content, archived) values (?, ?, ?, ?, ?, ?) returning id"))
 (define stmt/article-select-by-feedid (prepare *conn* "select id, feed_id, link, title, date, content, archived from articles where feed_id = ?"))
 
@@ -138,14 +138,12 @@
   (query-exec conn query/feed-table-create)
   (query-exec conn query/article-table-create))
 
-(define (record-exists conn stmt id)
-  (if (null? id)
-    #f
-    (let ([query (bind-prepared-statement stmt (list id))])
-      (not (false? (query-maybe-value conn query))))))
+(define (record-exists conn stmt . args)
+  (let ([query (bind-prepared-statement stmt args)])
+    (not (false? (query-maybe-value conn query)))))
 
 (define (insert-feed conn f)
-  (if (record-exists conn stmt/feed-exists (feed-id f))
+  (if (or (not (null? (feed-id f))) (record-exists conn stmt/feed-exists (feed-link f)))
     f
     (let* ([url (feed-link f)]
            [title (feed-title f)]
@@ -163,7 +161,7 @@
                  '())) rows)))
 
 (define (insert-article conn a f)
-  (if (record-exists conn stmt/article-exists (article-id a))
+  (if (or (not (null? (article-id a))) (record-exists conn stmt/article-exists (article-link a)))
     a
     (let* ([feedid (feed-id f)]
            [url (article-link a)]
