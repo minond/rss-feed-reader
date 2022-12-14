@@ -32,6 +32,11 @@
 (define (boolean->integer b)
   (if b 1 0))
 
+(define (string-chop str maxlen #:end [end ""])
+  (if (<= (string-length str) maxlen)
+    str
+    (string-append (string-trim (substring str 0 maxlen)) end)))
+
 
 (struct feed (id link title enabled articles))
 (struct article (id feedid link title date content archived))
@@ -206,33 +211,60 @@
                   padding: 0;
                 }
                 header {
-                  border-bottom: 1px solid rgb(223, 223, 223);
                   font-weight: bold;
+                }
+                .separator {
+                  border-bottom: 1px solid rgb(223, 223, 223);
+                }
+                header,
+                main {
+                  margin: 0 auto;
+                  max-width: 50em;
                   padding: 1em;
                 }
-                main {
-                  padding: 0 1em;
-                }
-                article time {
-                  font-size: 0.75em;
-                  color: rgb(83, 83, 83);
+                h4, h5 {
+                  margin: 0;
+                  margin-bottom: 1em;
                 }
                 article.row {
-                  margin: 0.75em 0;
+                  border-bottom: 1px solid rgb(235, 235, 235);
+                  padding: 2em 0;
                 }
-                article.row span {
-                  padding-right: 1em;
+                article.row .showonhover {
+                  opacity: 0;
+                  transition: opacity .2s;
+                }
+                article.row:hover .showonhover {
+                  opacity: 1;
+                }
+                article.row time,
+                article.row p,
+                article.row a {
+                  color: rgb(83, 83, 83);
+                  font-size: 0.75em;
+                  text-decoration: none;
+                }
+                article.row a {
+                  padding-left: 1em;
+                }
+                article.row p {
+                  font-size: 0.9em;
                 }
               "))
             (h:body
               (h:header
                 (h:div "feeder"))
+              (h:div 'class: "separator")
               (h:main (map (lambda (feed)
-                             (h:section (h:h3 (feed-title feed))
-                                        (map (lambda (article)
+                             (h:section (map (lambda (article)
                                                (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
                                                      [humandate (~t (article-date article) "MMMM d, yyyy")])
                                                  (h:article 'class: "row"
-                                                            (h:span (article-title article))
-                                                            (h:time 'datetime: datetime humandate)))) (feed-articles feed))
+                                                            (h:h4 (article-title article))
+                                                            (h:h5 (feed-title feed))
+                                                            (h:p (string-chop (article-content article) 300 #:end "..."))
+                                                            (h:time 'datetime: datetime humandate)
+                                                            (h:a 'class: "showonhover" 'href: (article-link article) "read")
+                                                            (h:a 'class: "showonhover" 'href: "#save" "save")
+                                                            (h:a 'class: "showonhover" 'href: "#archive" "archive")))) (feed-articles feed))
                                         )) feeds)))))))
