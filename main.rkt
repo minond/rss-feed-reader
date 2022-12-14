@@ -37,6 +37,9 @@
     str
     (string-append (string-trim (substring str 0 maxlen)) end)))
 
+(define (strip-html str)
+  (regexp-replace* #rx"(<([^>]+)>)" str ""))
+
 
 (struct feed (id link title enabled articles))
 (struct article (id feedid link title date content archived))
@@ -262,7 +265,7 @@
                                                  (h:article 'class: "row"
                                                             (h:h4 (article-title article))
                                                             (h:h5 (feed-title feed))
-                                                            (h:p (string-chop (article-content article) 300 #:end "..."))
+                                                            (h:p (string-chop (strip-html (article-content article)) 300 #:end "..."))
                                                             (h:time 'datetime: datetime humandate)
                                                             (h:a 'class: "showonhover" 'href: (article-link article) "read")
                                                             (h:a 'class: "showonhover" 'href: "#save" "save")
