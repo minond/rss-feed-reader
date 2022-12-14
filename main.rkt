@@ -7,6 +7,10 @@
 (require request/param)
 (require gregor)
 
+(require (prefix-in h: scribble/html/xml))
+(require (prefix-in h: scribble/html/html))
+(require (prefix-in h: scribble/html/extra))
+
 
 (define (string->datetime str)
   (let ([parse (lambda (format)
@@ -154,11 +158,12 @@
 (define (load-feeds conn)
   (let ([rows (query-rows conn stmt/feed-select)])
     (map (lambda (row)
-           (feed (vector-ref row 0)
-                 (vector-ref row 1)
-                 (vector-ref row 2)
-                 (integer->boolean (vector-ref row 3))
-                 '())) rows)))
+           (let ([id (vector-ref row 0)])
+             (feed id
+                   (vector-ref row 1)
+                   (vector-ref row 2)
+                   (integer->boolean (vector-ref row 3))
+                   (load-articles-by conn #:feedid id)))) rows)))
 
 (define (insert-article conn a f)
   (if (or (not (null? (article-id a))) (record-exists conn stmt/article-exists (article-link a)))
@@ -182,3 +187,52 @@
                     (string->datetime (vector-ref row 4))
                     (vector-ref row 5)
                     (integer->boolean (vector-ref row 6)))) rows)))
+
+
+(define (view:main feeds)
+  (h:xml->string
+    (list (h:doctype 'html)
+          (h:html
+            (h:head
+              (h:meta 'charset: "utf-8")
+              (h:meta 'name: "viewport" 'content: "width=device-width, initial-scale=1.0")
+              (h:title "feeder")
+              (h:style "
+                @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap');
+                body {
+                  cursor: default;
+                  font-family: 'Libre Baskerville', serif;
+                  margin: 0;
+                  padding: 0;
+                }
+                header {
+                  border-bottom: 1px solid rgb(223, 223, 223);
+                  font-weight: bold;
+                  padding: 1em;
+                }
+                main {
+                  padding: 0 1em;
+                }
+                article time {
+                  font-size: 0.75em;
+                  color: rgb(83, 83, 83);
+                }
+                article.row {
+                  margin: 0.75em 0;
+                }
+                article.row span {
+                  padding-right: 1em;
+                }
+              "))
+            (h:body
+              (h:header
+                (h:div "feeder"))
+              (h:main (map (lambda (feed)
+                             (h:section (h:h3 (feed-title feed))
+                                        (map (lambda (article)
+                                               (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
+                                                     [humandate (~t (article-date article) "MMMM d, yyyy")])
+                                                 (h:article 'class: "row"
+                                                            (h:span (article-title article))
+                                                            (h:time 'datetime: datetime humandate)))) (feed-articles feed))
+                                        )) feeds)))))))
