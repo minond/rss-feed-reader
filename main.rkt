@@ -7,6 +7,10 @@
 (require request/param)
 (require gregor)
 
+(require web-server/dispatch)
+(require web-server/servlet)
+(require web-server/servlet-env)
+
 (require (prefix-in h: scribble/html/xml))
 (require (prefix-in h: scribble/html/html))
 (require (prefix-in h: scribble/html/extra))
@@ -144,6 +148,7 @@
 (define stmt/article-exists (prepare *conn* "select id from articles where link = ?"))
 (define stmt/article-insert (prepare *conn* "insert into articles (feed_id, link, title, date, content, archived) values (?, ?, ?, ?, ?, ?) returning id"))
 (define stmt/article-select-by-feedid (prepare *conn* "select id, feed_id, link, title, date, content, archived from articles where feed_id = ?"))
+(define stmt/article-select-unarchived (prepare *conn* "select id, feed_id, link, title, date, content, archived from articles where not archived"))
 
 
 (define (setup! conn)
@@ -163,15 +168,16 @@
            [id (query-value conn stmt/feed-insert url title enabled)])
       (feed id url title (feed-enabled f) (feed-articles f)))))
 
-(define (load-feeds conn)
+(define (load-feeds conn #:with-articles [with-articles #t])
   (let ([rows (query-rows conn stmt/feed-select)])
     (map (lambda (row)
-           (let ([id (vector-ref row 0)])
+           (let* ([id (vector-ref row 0)]
+                  [articles (if with-articles (load-articles-by conn #:feedid id) '())])
              (feed id
                    (vector-ref row 1)
                    (vector-ref row 2)
                    (integer->boolean (vector-ref row 3))
-                   (load-articles-by conn #:feedid id)))) rows)))
+                   articles))) rows)))
 
 (define (insert-article conn a f)
   (if (or (not (null? (article-id a))) (record-exists conn stmt/article-exists (article-link a)))
@@ -187,14 +193,20 @@
 
 (define (load-articles-by conn #:feedid feedid)
   (let ([rows (query-rows conn stmt/article-select-by-feedid feedid)])
-    (map (lambda (row)
-           (article (vector-ref row 0)
-                    (vector-ref row 1)
-                    (vector-ref row 2)
-                    (vector-ref row 3)
-                    (string->datetime (vector-ref row 4))
-                    (vector-ref row 5)
-                    (integer->boolean (vector-ref row 6)))) rows)))
+    (map vector->article rows)))
+
+(define (load-unread-articles conn)
+  (let ([rows (query-rows conn stmt/article-select-unarchived)])
+    (map vector->article rows)))
+
+(define (vector->article vec)
+  (article (vector-ref vec 0)
+           (vector-ref vec 1)
+           (vector-ref vec 2)
+           (vector-ref vec 3)
+           (string->datetime (vector-ref vec 4))
+           (vector-ref vec 5)
+           (integer->boolean (vector-ref vec 6))))
 
 (define css
   "@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap');
@@ -245,7 +257,7 @@
     font-size: 0.9em;
   }")
 
-(define (view:main feeds)
+(define (view:articles feeds)
   (h:xml->string
     (list (h:doctype 'html)
           (h:html
@@ -255,19 +267,40 @@
               (h:title "feeder")
               (h:style css))
             (h:body
-              (h:header
-                (h:div "feeder"))
+              (h:header (h:div "feeder"))
               (h:div 'class: "separator")
               (h:main (map (lambda (feed)
                              (h:section (map (lambda (article)
-                                               (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
-                                                     [humandate (~t (article-date article) "MMMM d, yyyy")])
-                                                 (h:article 'class: "row"
-                                                            (h:h4 (article-title article))
-                                                            (h:h5 (feed-title feed))
-                                                            (h:p (string-chop (strip-html (article-content article)) 300 #:end "..."))
-                                                            (h:time 'datetime: datetime humandate)
-                                                            (h:a 'class: "showonhover" 'href: (article-link article) "read")
-                                                            (h:a 'class: "showonhover" 'href: "#save" "save")
-                                                            (h:a 'class: "showonhover" 'href: "#archive" "archive")))) (feed-articles feed))
-                                        )) feeds)))))))
+                                               (view:article-row feed article))
+                                             (feed-articles feed)))) feeds)))))))
+
+(define (view:article-row feed article)
+  (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
+        [humandate (~t (article-date article) "MMMM d, yyyy")])
+    (h:article 'class: "row"
+               (h:h4 (article-title article))
+               (h:h5 (feed-title feed))
+               (h:p (string-chop (strip-html (article-content article)) 300 #:end "..."))
+               (h:time 'datetime: datetime humandate)
+               (h:a 'class: "showonhover" 'href: (article-link article) "read")
+               (h:a 'class: "showonhover" 'href: "#save" "save")
+               (h:a 'class: "showonhover" 'href: "#archive" "archive"))))
+
+
+(define (route:arcticles req)
+  (let ([feeds (load-feeds *conn*)])
+    (lambda (op) (display (view:articles feeds) op))))
+
+(define-values (routes blog-url)
+  (dispatch-rules
+    [("articles") route:arcticles]
+    [else route:arcticles]))
+
+(define (server req)
+  (response/output (routes req)))
+
+(serve/servlet server
+               #:launch-browser? #f
+               #:servlet-path "/"
+               #:port 8000
+               #:servlet-regexp #rx"")
