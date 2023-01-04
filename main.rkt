@@ -148,6 +148,7 @@
 (define stmt/article-exists (prepare *conn* "select id from articles where link = ?"))
 (define stmt/article-insert (prepare *conn* "insert into articles (feed_id, link, title, date, content, archived) values (?, ?, ?, ?, ?, ?) returning id"))
 (define stmt/article-select-by-feedid (prepare *conn* "select id, feed_id, link, title, date, content, archived from articles where feed_id = ?"))
+(define stmt/article-select-by-id (prepare *conn* "select id, feed_id, link, title, date, content, archived from articles where id = ? limit 1"))
 (define stmt/article-select-unarchived (prepare *conn* "select id, feed_id, link, title, date, content, archived from articles where not archived"))
 
 
@@ -195,6 +196,10 @@
   (let ([rows (query-rows conn stmt/article-select-by-feedid feedid)])
     (map vector->article rows)))
 
+(define (load-article-by conn #:id id)
+  (let ([row (query-row conn stmt/article-select-by-id id)])
+    (vector->article row)))
+
 (define (load-unread-articles conn)
   (let ([rows (query-rows conn stmt/article-select-unarchived)])
     (map vector->article rows)))
@@ -219,6 +224,13 @@
   header {
     font-weight: bold;
   }
+  a {
+    color: initial;
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
   .separator {
     border-bottom: 1px solid rgb(223, 223, 223);
   }
@@ -231,6 +243,9 @@
   h4, h5 {
     margin: 0;
     margin-bottom: 1em;
+  }
+  .pl1 {
+    padding-left: 1em;
   }
   article.row {
     border-bottom: 1px solid rgb(235, 235, 235);
@@ -245,19 +260,16 @@
   }
   article.row time,
   article.row p,
-  article.row a {
+  article.row a.action {
     color: rgb(83, 83, 83);
     font-size: 0.75em;
     text-decoration: none;
-  }
-  article.row a {
-    padding-left: 1em;
   }
   article.row p {
     font-size: 0.9em;
   }")
 
-(define (view:articles feeds)
+(define (view:page content)
   (h:xml->string
     (list (h:doctype 'html)
           (h:html
@@ -269,31 +281,46 @@
             (h:body
               (h:header (h:div "feeder"))
               (h:div 'class: "separator")
-              (h:main (map (lambda (feed)
-                             (h:section (map (lambda (article)
-                                               (view:article-row feed article))
-                                             (feed-articles feed)))) feeds)))))))
+              (h:main content))))))
 
-(define (view:article-row feed article)
+(define (view:article article)
+  (view:page
+    (article-title article)))
+
+(define (view:articles feeds)
+  (view:page
+    (map (lambda (feed)
+           (h:section (map (lambda (article)
+                             (partial:article-row feed article))
+                           (feed-articles feed)))) feeds)))
+
+(define (partial:article-row feed article)
   (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
         [humandate (~t (article-date article) "MMMM d, yyyy")])
     (h:article 'class: "row"
-               (h:h4 (article-title article))
+               (h:h4
+                 (h:a 'href: (format "/articles/~a" (article-id article))
+                      (article-title article)))
                (h:h5 (feed-title feed))
                (h:p (string-chop (strip-html (article-content article)) 300 #:end "..."))
                (h:time 'datetime: datetime humandate)
-               (h:a 'class: "showonhover" 'href: (article-link article) "read")
-               (h:a 'class: "showonhover" 'href: "#save" "save")
-               (h:a 'class: "showonhover" 'href: "#archive" "archive"))))
+               (h:a 'class: "pl1 action showonhover" 'href: (article-link article) "read")
+               #;(h:a 'class: "pl1 action showonhover" 'href: "#save" "save")
+               #;(h:a 'class: "pl1 action showonhover" 'href: "#archive" "archive"))))
 
 
 (define (route:arcticles req)
   (let ([feeds (load-feeds *conn*)])
     (lambda (op) (display (view:articles feeds) op))))
 
+(define (route:arcticle req id)
+  (let ([article (load-article-by *conn* #:id id)])
+    (lambda (op) (display (view:article article) op))))
+
 (define-values (routes blog-url)
   (dispatch-rules
     [("articles") route:arcticles]
+    [("articles" (integer-arg)) route:arcticle]
     [else route:arcticles]))
 
 (define (server req)
