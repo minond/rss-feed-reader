@@ -279,7 +279,7 @@
               (h:title "feeder")
               (h:style css))
             (h:body
-              (h:header (h:div "feeder"))
+              (h:header (h:div (h:a 'href: "/" "feeder")))
               (h:div 'class: "separator")
               (h:main content))))))
 
