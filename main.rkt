@@ -134,6 +134,7 @@
 (define stmt/feed-exists (prepare *conn* "select id from feeds where link = ?"))
 (define stmt/feed-insert (prepare *conn* "insert into feeds (link, title, enabled) values (?, ?, ?) returning id"))
 (define stmt/feed-select (prepare *conn* "select id, link, title, enabled from feeds"))
+(define stmt/feed-select-by-id (prepare *conn* "select id, link, title, enabled from feeds where id = ? limit 1"))
 
 (define query/article-table-create
   "create table if not exists articles (
@@ -174,11 +175,19 @@
     (map (lambda (row)
            (let* ([id (vector-ref row 0)]
                   [articles (if with-articles (load-articles-by conn #:feedid id) '())])
-             (feed id
-                   (vector-ref row 1)
-                   (vector-ref row 2)
-                   (integer->boolean (vector-ref row 3))
-                   articles))) rows)))
+             (vector->feed row articles)))
+         rows)))
+
+(define (load-feed-by conn #:id id)
+  (let ([row (query-row conn stmt/feed-select-by-id id)])
+    (vector->feed row)))
+
+(define (vector->feed vec [articles '()])
+  (feed (vector-ref vec 0)
+        (vector-ref vec 1)
+        (vector-ref vec 2)
+        (integer->boolean (vector-ref vec 3))
+        articles))
 
 (define (insert-article conn a f)
   (if (or (not (null? (article-id a))) (record-exists conn stmt/article-exists (article-link a)))
@@ -258,9 +267,9 @@
   article.row:hover .showonhover {
     opacity: 1;
   }
-  article.row time,
+  article time,
   article.row p,
-  article.row a.action {
+  article a.action {
     color: rgb(83, 83, 83);
     font-size: 0.75em;
     text-decoration: none;
@@ -283,9 +292,15 @@
               (h:div 'class: "separator")
               (h:main content))))))
 
-(define (view:article article)
-  (view:page
-    (article-title article)))
+(define (view:article feed article)
+  (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
+        [humandate (~t (article-date article) "MMMM d, yyyy")])
+    (view:page
+      (h:article
+        (h:h1 (h:a 'href: (article-link article) (article-title article)))
+        (h:h4 (feed-title feed))
+        (h:time 'datetime: datetime humandate)
+        (h:p (h:literal (article-content article)))))))
 
 (define (view:articles feeds)
   (view:page
@@ -314,8 +329,9 @@
     (lambda (op) (display (view:articles feeds) op))))
 
 (define (route:arcticle req id)
-  (let ([article (load-article-by *conn* #:id id)])
-    (lambda (op) (display (view:article article) op))))
+  (let* ([article (load-article-by *conn* #:id id)]
+         [feed (load-feed-by *conn* #:id (article-feedid article))])
+    (lambda (op) (display (view:article feed article) op))))
 
 (define-values (routes blog-url)
   (dispatch-rules
