@@ -223,60 +223,8 @@
            (integer->boolean (vector-ref vec 6))))
 
 (define css
-  "@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap');
-  body {
-    cursor: default;
-    font-family: 'Libre Baskerville', serif;
-    margin: 0;
-    padding: 0;
-  }
-  header {
-    font-weight: bold;
-  }
-  a {
-    color: initial;
-    text-decoration: none;
-  }
-  a:hover {
-    text-decoration: underline;
-  }
-  .separator {
-    border-bottom: 1px solid rgb(223, 223, 223);
-  }
-  header,
-  main {
-    margin: 0 auto;
-    max-width: 50em;
-    padding: 1em;
-  }
-  h4, h5 {
-    margin: 0;
-    margin-bottom: 1em;
-  }
-  .pl1 {
-    padding-left: 1em;
-  }
-  article.row {
-    border-bottom: 1px solid rgb(235, 235, 235);
-    padding: 2em 0;
-  }
-  article.row .showonhover {
-    opacity: 0;
-    transition: opacity .2s;
-  }
-  article.row:hover .showonhover {
-    opacity: 1;
-  }
-  article time,
-  article.row p,
-  article a.action {
-    color: rgb(83, 83, 83);
-    font-size: 0.75em;
-    text-decoration: none;
-  }
-  article.row p {
-    font-size: 0.9em;
-  }")
+  (port->string
+    (open-input-file "styles.css")))
 
 (define (view:page content)
   (h:xml->string
