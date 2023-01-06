@@ -10,6 +10,7 @@
 (require web-server/dispatch)
 (require web-server/servlet)
 (require web-server/servlet-env)
+(require web-server/http/redirect)
 
 (require (prefix-in h: scribble/html/xml))
 (require (prefix-in h: scribble/html/html))
@@ -148,9 +149,10 @@
   )")
 (define stmt/article-exists (prepare *conn* "select id from articles where link = ?"))
 (define stmt/article-insert (prepare *conn* "insert into articles (feed_id, link, title, date, content, archived) values (?, ?, ?, ?, ?, ?) returning id"))
-(define stmt/article-select-by-feedid (prepare *conn* "select id, feed_id, link, title, date, content, archived from articles where feed_id = ?"))
+(define stmt/article-select-by-feedid (prepare *conn* "select id, feed_id, link, title, date, content, archived from articles where feed_id = ? and not archived"))
 (define stmt/article-select-by-id (prepare *conn* "select id, feed_id, link, title, date, content, archived from articles where id = ? limit 1"))
 (define stmt/article-select-unarchived (prepare *conn* "select id, feed_id, link, title, date, content, archived from articles where not archived"))
+(define stmt/article-update-archive-by-id (prepare *conn* "update articles set archived = true where id = ?"))
 
 
 (define (setup! conn)
@@ -213,6 +215,9 @@
   (let ([rows (query-rows conn stmt/article-select-unarchived)])
     (map vector->article rows)))
 
+(define (archive-article-by conn #:id id)
+  (query conn stmt/article-update-archive-by-id id))
+
 (define (vector->article vec)
   (article (vector-ref vec 0)
            (vector-ref vec 1)
@@ -269,26 +274,34 @@
                (h:time 'datetime: datetime humandate)
                (h:a 'class: "pl1 action showonhover" 'href: (article-link article) "read")
                #;(h:a 'class: "pl1 action showonhover" 'href: "#save" "save")
-               #;(h:a 'class: "pl1 action showonhover" 'href: "#archive" "archive"))))
+               (h:a 'class: "pl1 action showonhover" 'href: (format "/articles/~a/archive" (article-id article)) "archive"))))
 
 
 (define (route:arcticles req)
-  (let ([feeds (load-feeds *conn*)])
-    (lambda (op) (display (view:articles feeds) op))))
+  (response/output
+    (let ([feeds (load-feeds *conn*)])
+      (lambda (op) (display (view:articles feeds) op)))))
 
 (define (route:arcticle req id)
-  (let* ([article (load-article-by *conn* #:id id)]
-         [feed (load-feed-by *conn* #:id (article-feedid article))])
-    (lambda (op) (display (view:article feed article) op))))
+  (response/output
+    (let* ([article (load-article-by *conn* #:id id)]
+           [feed (load-feed-by *conn* #:id (article-feedid article))])
+      (lambda (op) (display (view:article feed article) op)))))
 
-(define-values (routes blog-url)
+(define (route:arcticle-archive req id)
+  (begin
+    (archive-article-by *conn* #:id id)
+    (redirect-to "/articles" permanently)))
+
+(define-values (app-dispatch app-url)
   (dispatch-rules
     [("articles") route:arcticles]
     [("articles" (integer-arg)) route:arcticle]
+    [("articles" (integer-arg) "archive") route:arcticle-archive]
     [else route:arcticles]))
 
 (define (server req)
-  (response/output (routes req)))
+  (app-dispatch req))
 
 (serve/servlet server
                #:launch-browser? #f
