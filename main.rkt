@@ -149,7 +149,8 @@
   )")
 (define stmt/article-exists (prepare *conn* "select id from articles where link = ?"))
 (define stmt/article-insert (prepare *conn* "insert into articles (feed_id, link, title, date, content, archived) values (?, ?, ?, ?, ?, ?) returning id"))
-(define stmt/article-select-by-feedid (prepare *conn* "select id, feed_id, link, title, date, content, archived from articles where feed_id = ? and not archived"))
+(define stmt/article-select-unarchived-by-feedid (prepare *conn* "select id, feed_id, link, title, date, content, archived from articles where feed_id = ? and not archived"))
+(define stmt/article-select-all-by-feedid (prepare *conn* "select id, feed_id, link, title, date, content, archived from articles where feed_id = ?"))
 (define stmt/article-select-by-id (prepare *conn* "select id, feed_id, link, title, date, content, archived from articles where id = ? limit 1"))
 (define stmt/article-select-unarchived (prepare *conn* "select id, feed_id, link, title, date, content, archived from articles where not archived"))
 (define stmt/article-update-archive-by-id (prepare *conn* "update articles set archived = true where id = ?"))
@@ -203,8 +204,9 @@
            [id (query-value conn stmt/article-insert feedid url title date content archived)])
       (article id feedid url title date content (article-archived a)))))
 
-(define (load-articles-by conn #:feedid feedid)
-  (let ([rows (query-rows conn stmt/article-select-by-feedid feedid)])
+(define (load-articles-by conn #:feedid feedid #:archived [archived #f])
+  (let* ([query (if archived stmt/article-select-all-by-feedid stmt/article-select-unarchived-by-feedid)]
+         [rows (query-rows conn query feedid)])
     (map vector->article rows)))
 
 (define (load-article-by conn #:id id)
