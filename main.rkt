@@ -124,6 +124,8 @@
 (define *conn*
   (connection-pool-lease *pool*))
 
+(define *page-size* 3)
+
 
 (define query/feed-table-create
   "create table if not exists feeds (
@@ -149,10 +151,12 @@
   )")
 (define stmt/article-exists (prepare *conn* "select id from articles where link = ?"))
 (define stmt/article-insert (prepare *conn* "insert into articles (feed_id, link, title, date, content, archived) values (?, ?, ?, ?, ?, ?) returning id"))
+(define stmt/article-count-unarchived (prepare *conn* "select count(*) from articles where not archived"))
+(define stmt/article-count-all (prepare *conn* "select count(*) from articles"))
 (define stmt/article-select-unarchived-by-feedid (prepare *conn* "select id, feed_id, link, title, date, content, archived from articles where feed_id = ? and not archived"))
 (define stmt/article-select-all-by-feedid (prepare *conn* "select id, feed_id, link, title, date, content, archived from articles where feed_id = ?"))
 (define stmt/article-select-by-id (prepare *conn* "select id, feed_id, link, title, date, content, archived from articles where id = ? limit 1"))
-(define stmt/article-select-unarchived (prepare *conn* "select id, feed_id, link, title, date, content, archived from articles where not archived"))
+(define stmt/article-select-unarchived (prepare *conn* "select id, feed_id, link, title, date, content, archived from articles where not archived limit ? offset ?"))
 (define stmt/article-update-archive-by-id (prepare *conn* "update articles set archived = true where id = ?"))
 
 
@@ -204,6 +208,10 @@
            [id (query-value conn stmt/article-insert feedid url title date content archived)])
       (article id feedid url title date content (article-archived a)))))
 
+(define (load-articles conn #:limit [limit *page-size*] #:offset [offset 0])
+  (let ([rows (query-rows conn stmt/article-select-unarchived limit offset)])
+    (map vector->article rows)))
+
 (define (load-articles-by conn #:feedid feedid #:archived [archived #f])
   (let* ([query (if archived stmt/article-select-all-by-feedid stmt/article-select-unarchived-by-feedid)]
          [rows (query-rows conn query feedid)])
@@ -213,9 +221,10 @@
   (let ([row (query-row conn stmt/article-select-by-id id)])
     (vector->article row)))
 
-(define (load-unread-articles conn)
-  (let ([rows (query-rows conn stmt/article-select-unarchived)])
-    (map vector->article rows)))
+(define (count-articles conn #:archived [archived #f])
+  (let* ([query (if archived stmt/article-count-all  stmt/article-count-unarchived)]
+         [row (query-row conn query)])
+    (vector-ref row 0)))
 
 (define (archive-article-by conn #:id id)
   (query conn stmt/article-update-archive-by-id id))
@@ -257,12 +266,11 @@
         (h:time 'datetime: datetime humandate)
         (h:p (h:literal (article-content article)))))))
 
-(define (view:articles feeds)
+(define (view:articles articles current-page page-count)
   (view:page
-    (map (lambda (feed)
-           (h:section (map (lambda (article)
-                             (partial:article-row feed article))
-                           (feed-articles feed)))) feeds)))
+    (append
+      (map (lambda (article)
+             (partial:article-row null article)) articles))))
 
 (define (partial:article-row feed article)
   (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
@@ -271,7 +279,7 @@
                (h:h4
                  (h:a 'href: (format "/articles/~a" (article-id article))
                       (article-title article)))
-               (h:h5 (feed-title feed))
+               #;(h:h5 (feed-title feed))
                (h:p (string-chop (strip-html (article-content article)) 300 #:end "..."))
                (h:time 'datetime: datetime humandate)
                (h:a 'class: "pl1 action showonhover" 'href: (article-link article) "read")
@@ -281,14 +289,21 @@
 
 (define (route:arcticles req)
   (response/output
-    (let ([feeds (load-feeds *conn*)])
-      (lambda (op) (display (view:articles feeds) op)))))
+    (let* ([params (request-bindings req)]
+           [page-param (or (findf (lambda (param) (eq? 'page (car param))) params) '(page . "1"))]
+           [current-page (string->number (cdr page-param))]
+           [page-count (count-articles *conn*)]
+           [offset (* (- current-page 1) *page-size*)]
+           [articles (load-articles *conn* #:offset offset)])
+      (lambda (op)
+        (display (view:articles articles current-page page-count) op)))))
 
 (define (route:arcticle req id)
   (response/output
     (let* ([article (load-article-by *conn* #:id id)]
            [feed (load-feed-by *conn* #:id (article-feedid article))])
-      (lambda (op) (display (view:article feed article) op)))))
+      (lambda (op)
+        (display (view:article feed article) op)))))
 
 (define (route:arcticle-archive req id)
   (begin
