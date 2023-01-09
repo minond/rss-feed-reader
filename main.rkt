@@ -270,7 +270,19 @@
   (view:page
     (append
       (map (lambda (article)
-             (partial:article-row null article)) articles))))
+             (partial:article-row null article)) articles)
+      (page-links current-page page-count))))
+
+(define (page-links current-page page-count)
+  (let ([numbers (page-numbers current-page page-count)])
+    (h:div 'class: "page-links"
+           (map (lambda (num)
+                  (h:a 'href: (format "?page=~a" num)
+                       'class: (if (eq? num current-page) "current-page page-link" "page-link")
+                       num)) numbers))))
+
+(define (page-numbers current-page page-count)
+  (inclusive-range 1 10))
 
 (define (partial:article-row feed article)
   (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]

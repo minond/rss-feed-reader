@@ -66,3 +66,19 @@ article a.action {
 article.row p {
   font-size: 0.9em;
 }
+
+.page-links {
+  padding: 1em;
+  text-align: center;
+  overflow: scroll;
+}
+
+.page-link {
+  margin: 0 .75em;
+  color: rgb(71, 71, 71);
+}
+
+.page-link.current-page {
+  color: black;
+  font-weight: bold;
+}
