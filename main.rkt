@@ -276,13 +276,17 @@
 (define (page-links current-page page-count)
   (let ([numbers (page-numbers current-page page-count)])
     (h:div 'class: "page-links"
-           (and (> current-page 1) (h:a 'class: "page-link" 'href: (format "?page=~a" (- current-page 1)) "<"))
+           (and (> current-page 1)
+                (h:a 'class: "page-link"
+                     'href: (format "?page=~a" (- current-page 1)) "<"))
            (map (lambda (num)
                   (match num
                     ['skip (h:span 'class: "page-skip" "…")]
                     [else (h:a 'class: (if (eq? num current-page) "current-page page-link" "page-link")
                                'href: (format "?page=~a" num) num)])) numbers)
-           (and (< current-page page-count) (h:a 'class: "page-link" 'href: (format "?page=~a" (+ current-page 1)) ">")))))
+           (and (< current-page page-count)
+                (h:a 'class: "page-link"
+                     'href: (format "?page=~a" (+ current-page 1)) ">")))))
 
 (define (page-numbers current-page page-count)
   (if (< page-count 10)
