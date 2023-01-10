@@ -311,7 +311,7 @@
                #;(h:h5 (feed-title feed))
                (h:p (string-chop (strip-html (article-content article)) 300 #:end "…"))
                (h:time 'datetime: datetime humandate)
-               (h:a 'class: "pl1 action showonhover" 'href: (article-link article) "read")
+               (h:a 'class: "pl1 action showonhover" 'href: (article-link article) 'target: "_blank" "read")
                #;(h:a 'class: "pl1 action showonhover" 'href: "#save" "save")
                (h:a 'class: "pl1 action showonhover" 'href: (format "/articles/~a/archive" (article-id article)) "archive"))))
 
