@@ -222,7 +222,7 @@
     (vector->article row)))
 
 (define (count-articles conn #:archived [archived #f])
-  (let* ([query (if archived stmt/article-count-all  stmt/article-count-unarchived)]
+  (let* ([query (if archived stmt/article-count-all stmt/article-count-unarchived)]
          [row (query-row conn query)])
     (vector-ref row 0)))
 
@@ -277,12 +277,29 @@
   (let ([numbers (page-numbers current-page page-count)])
     (h:div 'class: "page-links"
            (map (lambda (num)
-                  (h:a 'href: (format "?page=~a" num)
-                       'class: (if (eq? num current-page) "current-page page-link" "page-link")
-                       num)) numbers))))
+                  (match num
+                    ['skip (h:span 'class: "page-skip" "…")]
+                    [else (h:a 'class: (if (eq? num current-page) "current-page page-link" "page-link")
+                               'href: (format "?page=~a" num) num)])) numbers))))
 
 (define (page-numbers current-page page-count)
-  (inclusive-range 1 10))
+  (if (< page-count 10)
+    (inclusive-range 1 page-count)
+    (let* ([start (inclusive-range 1 3)]
+           [middle (inclusive-range (- current-page 2) (+ current-page 2))]
+           [end (inclusive-range (- page-count 3) page-count)]
+           [whole (filter (lambda (num)
+                            (and (positive? num) (<= num page-count)))
+                          (sort (remove-duplicates (append start middle end)) <))])
+      (reduce-by-pair (lambda (acc a b)
+                        (if (eq? (- b a) 1)
+                          (append acc (list a))
+                          (append acc (list a 'skip)))) whole))))
+
+(define (reduce-by-pair f xs [id '()])
+  (if (< (length xs) 2)
+    (append id xs)
+    (reduce-by-pair f (cdr xs) (f id (car xs) (cadr xs)))))
 
 (define (partial:article-row feed article)
   (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
@@ -292,7 +309,7 @@
                  (h:a 'href: (format "/articles/~a" (article-id article))
                       (article-title article)))
                #;(h:h5 (feed-title feed))
-               (h:p (string-chop (strip-html (article-content article)) 300 #:end "..."))
+               (h:p (string-chop (strip-html (article-content article)) 300 #:end "…"))
                (h:time 'datetime: datetime humandate)
                (h:a 'class: "pl1 action showonhover" 'href: (article-link article) "read")
                #;(h:a 'class: "pl1 action showonhover" 'href: "#save" "save")
@@ -304,7 +321,7 @@
     (let* ([params (request-bindings req)]
            [page-param (or (findf (lambda (param) (eq? 'page (car param))) params) '(page . "1"))]
            [current-page (string->number (cdr page-param))]
-           [page-count (count-articles *conn*)]
+           [page-count (ceiling (/ (count-articles *conn*) *page-size*))]
            [offset (* (- current-page 1) *page-size*)]
            [articles (load-articles *conn* #:offset offset)])
       (lambda (op)
