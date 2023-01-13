@@ -45,13 +45,30 @@
 (define (strip-html str)
   (regexp-replace* #rx"(<([^>]+)>)" str ""))
 
+(define (reduce-by-pair f xs [id '()])
+  (if (< (length xs) 2)
+    (append id xs)
+    (reduce-by-pair f (cdr xs) (f id (car xs) (cadr xs)))))
+
+(define (find-pair key xs #:default [default null])
+  (or (findf (lambda (x)
+               (eq? key (car x))) xs)
+      default))
+
+(define (get-binding key req #:default [default null])
+  (cdr (find-pair key (request-bindings req)
+                  #:default (cons key default))))
+
+(define-syntax-rule (unless condition action)
+  (cond [(not condition) action]))
+
 
 (struct feed (id link title enabled articles))
 (struct article (id feedid link title date content archived))
 
 
 (define (feed! url)
-  (process-feed (download-feed url)))
+  (process-feed url (download-feed url)))
 
 (define (download-feed url)
   (let* ([response (get (string->url url))]
@@ -60,12 +77,12 @@
          [elem (document-element root)])
     (xml->xexpr elem)))
 
-(define (process-feed xexpr)
+(define (process-feed url xexpr)
   (if (se-path* '(feed) xexpr)
-    (process-atom-feed xexpr)
-    (process-rss-feed xexpr)))
+    (process-atom-feed url xexpr)
+    (process-rss-feed url xexpr)))
 
-(define (process-atom-feed xexpr)
+(define (process-atom-feed url xexpr)
   (let* ([title (se-path* '(feed title) xexpr)]
          [link (se-path* '(feed link #:href) xexpr)]
          [entry-data (se-path*/list '(feed) xexpr)]
@@ -89,9 +106,9 @@
                                                          (list->string (cddr part) "")))]
                                   [else null])))
                             (article null null link title date content #f)) entries))])
-    (feed null link title #t articles)))
+    (feed null (or url link) title #t articles)))
 
-(define (process-rss-feed xexpr)
+(define (process-rss-feed url xexpr)
   (let* ([title (se-path* '(rss channel title) xexpr)]
          [link (se-path* '(rss channel link) xexpr)]
          [item-data (se-path*/list '(rss channel) xexpr)]
@@ -113,7 +130,7 @@
                                                              (list->string (cddr part) "")))]
                                   [else null])))
                             (article null null link title date content #f)) items))])
-    (feed null link title #t articles)))
+    (feed null (or url link) title #t articles)))
 
 
 (define *pool*
@@ -124,7 +141,7 @@
 (define *conn*
   (connection-pool-lease *pool*))
 
-(define *page-size* 3)
+(define *page-size* 10)
 
 
 (define query/feed-table-create
@@ -204,9 +221,9 @@
            [title (article-title a)]
            [date (~t (article-date a) "y-M-d HH:mm:ss")]
            [content (article-content a)]
-           [archived (boolean->integer (article-archived a))]
-           [id (query-value conn stmt/article-insert feedid url title date content archived)])
-      (article id feedid url title date content (article-archived a)))))
+           [archived (boolean->integer (article-archived a))])
+      (article (query-value conn stmt/article-insert feedid url title date content archived)
+               feedid url title date content (article-archived a)))))
 
 (define (load-articles conn #:limit [limit *page-size*] #:offset [offset 0])
   (let ([rows (query-rows conn stmt/article-select-unarchived limit offset)])
@@ -252,9 +269,26 @@
               (h:title "feeder")
               (h:style css))
             (h:body
-              (h:header (h:div (h:a 'href: "/" "feeder")))
+              (h:header
+                (h:table
+                  (h:tr
+                    (h:td
+                      (h:a 'href: "/" "feeder"))
+                    (h:td
+                      (h:a 'class: "add-feed" 'href: "/add" "+")))))
               (h:div 'class: "separator")
               (h:main content))))))
+
+(define (view:add-feed)
+  (view:page
+    (h:form 'class: "add-feed-form"
+            'method: "post"
+            (h:input 'type: "url"
+                     'name: "link"
+                     'autofocus: "true"
+                     'placeholder: "https://your.blog.net/feed.rss")
+            (h:input 'type: "submit"
+                     'value: "Add"))))
 
 (define (view:article feed article)
   (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
@@ -302,11 +336,6 @@
                           (append acc (list a))
                           (append acc (list a 'skip)))) whole))))
 
-(define (reduce-by-pair f xs [id '()])
-  (if (< (length xs) 2)
-    (append id xs)
-    (reduce-by-pair f (cdr xs) (f id (car xs) (cadr xs)))))
-
 (define (partial:article-row feed article)
   (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
         [humandate (~t (article-date article) "MMMM d, yyyy")])
@@ -322,11 +351,24 @@
                (h:a 'class: "pl1 action showonhover" 'href: (format "/articles/~a/archive" (article-id article)) "archive"))))
 
 
+(define (route:new-feed req)
+  (response/output
+    (lambda (op)
+      (display (view:add-feed) op))))
+
+(define (route:create-feed req)
+  (let* ([link (get-binding 'link req)]
+         [exists (record-exists *conn* stmt/feed-exists link)])
+    (unless exists
+      (let ([feed (insert-feed *conn* (feed! link))])
+        (for ([article (feed-articles feed)])
+          (insert-article *conn* article feed))
+        (redirect-to "/articles" permanently)))
+    (redirect-to "/articles" permanently)))
+
 (define (route:arcticles req)
   (response/output
-    (let* ([params (request-bindings req)]
-           [page-param (or (findf (lambda (param) (eq? 'page (car param))) params) '(page . "1"))]
-           [current-page (string->number (cdr page-param))]
+    (let* ([current-page (string->number (get-binding 'page req #:default "1"))]
            [page-count (ceiling (/ (count-articles *conn*) *page-size*))]
            [offset (* (- current-page 1) *page-size*)]
            [articles (load-articles *conn* #:offset offset)])
@@ -347,6 +389,8 @@
 
 (define-values (app-dispatch app-url)
   (dispatch-rules
+    [("add") route:new-feed]
+    [("add") #:method "post" route:create-feed]
     [("articles") route:arcticles]
     [("articles" (integer-arg)) route:arcticle]
     [("articles" (integer-arg) "archive") route:arcticle-archive]
