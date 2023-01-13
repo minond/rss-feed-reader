@@ -362,8 +362,7 @@
     (unless exists
       (let ([feed (insert-feed *conn* (feed! link))])
         (for ([article (feed-articles feed)])
-          (insert-article *conn* article feed))
-        (redirect-to "/articles" permanently)))
+          (insert-article *conn* article feed))))
     (redirect-to "/articles" permanently)))
 
 (define (route:arcticles req)
