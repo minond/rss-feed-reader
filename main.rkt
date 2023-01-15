@@ -55,6 +55,9 @@
                (eq? key (car x))) xs)
       default))
 
+(define (get-parameter key req)
+  (get-binding key req #:default ""))
+
 (define (get-binding key req #:default [default null])
   (cdr (find-pair key (request-bindings req)
                   #:default (cons key default))))
@@ -369,7 +372,7 @@
 
 (define (route:arcticles req)
   (response/output
-    (let* ([current-page (string->number (get-binding 'page req #:default "1"))]
+    (let* ([current-page (or (string->number (get-parameter 'page req)) 1)]
            [page-count (ceiling (/ (count-articles *conn*) *page-size*))]
            [offset (* (- current-page 1) *page-size*)]
            [articles (load-articles *conn* #:offset offset)])
