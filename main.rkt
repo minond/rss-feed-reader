@@ -12,9 +12,9 @@
 (require web-server/servlet-env)
 (require web-server/http/redirect)
 
-(require (prefix-in h: scribble/html/xml))
-(require (prefix-in h: scribble/html/html))
-(require (prefix-in h: scribble/html/extra))
+(require (prefix-in : scribble/html/xml))
+(require (prefix-in : scribble/html/html))
+(require (prefix-in : scribble/html/extra))
 
 
 (define (string->datetime str)
@@ -263,45 +263,45 @@
     (open-input-file "styles.css")))
 
 (define (view:page content)
-  (h:xml->string
-    (list (h:doctype 'html)
-          (h:html
-            (h:head
-              (h:meta 'charset: "utf-8")
-              (h:meta 'name: "viewport" 'content: "width=device-width, initial-scale=1.0")
-              (h:title "feeder")
-              (h:style css))
-            (h:body
-              (h:header
-                (h:table
-                  (h:tr
-                    (h:td
-                      (h:a 'href: "/" "feeder"))
-                    (h:td
-                      (h:a 'class: "add-feed" 'href: "/add" "+")))))
-              (h:div 'class: "separator")
-              (h:main content))))))
+  (:xml->string
+    (list (:doctype 'html)
+          (:html
+            (:head
+              (:meta 'charset: "utf-8")
+              (:meta 'name: "viewport" 'content: "width=device-width, initial-scale=1.0")
+              (:title "feeder")
+              (:style css))
+            (:body
+              (:header
+                (:table
+                  (:tr
+                    (:td
+                      (:a 'href: "/" "feeder"))
+                    (:td
+                      (:a 'class: "add-feed" 'href: "/add" "+")))))
+              (:div 'class: "separator")
+              (:main content))))))
 
 (define (view:add-feed)
   (view:page
-    (h:form 'class: "add-feed-form"
-            'method: "post"
-            (h:input 'type: "url"
-                     'name: "link"
-                     'autofocus: "true"
-                     'placeholder: "https://your.blog.net/feed.rss")
-            (h:input 'type: "submit"
-                     'value: "Add"))))
+    (:form 'class: "add-feed-form"
+           'method: "post"
+           (:input 'type: "url"
+                   'name: "link"
+                   'autofocus: "true"
+                   'placeholder: "https://your.blog.net/feed.rss")
+           (:input 'type: "submit"
+                   'value: "Add"))))
 
 (define (view:article feed article)
   (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
         [humandate (~t (article-date article) "MMMM d, yyyy")])
     (view:page
-      (h:article
-        (h:h1 (h:a 'href: (article-link article) (article-title article)))
-        (h:h4 (feed-title feed))
-        (h:time 'datetime: datetime humandate)
-        (h:p (h:literal (article-content article)))))))
+      (:article
+        (:h1 (:a 'href: (article-link article) (article-title article)))
+        (:h4 (feed-title feed))
+        (:time 'datetime: datetime humandate)
+        (:p (:literal (article-content article)))))))
 
 (define (view:articles articles current-page page-count)
   (view:page
@@ -314,18 +314,18 @@
   (if (eq? page-count 1)
     null
     (let ([numbers (page-numbers current-page page-count)])
-      (h:div 'class: "page-links"
-             (and (> current-page 1)
-                  (h:a 'class: "page-link"
-                       'href: (format "?page=~a" (- current-page 1)) "<"))
-             (map (lambda (num)
-                    (match num
-                      ['skip (h:span 'class: "page-skip" "…")]
-                      [else (h:a 'class: (if (eq? num current-page) "current-page page-link" "page-link")
-                                 'href: (format "?page=~a" num) num)])) numbers)
-             (and (< current-page page-count)
-                  (h:a 'class: "page-link"
-                       'href: (format "?page=~a" (+ current-page 1)) ">"))))))
+      (:div 'class: "page-links"
+            (and (> current-page 1)
+                 (:a 'class: "page-link"
+                     'href: (format "?page=~a" (- current-page 1)) "<"))
+            (map (lambda (num)
+                   (match num
+                     ['skip (:span 'class: "page-skip" "…")]
+                     [else (:a 'class: (if (eq? num current-page) "current-page page-link" "page-link")
+                               'href: (format "?page=~a" num) num)])) numbers)
+            (and (< current-page page-count)
+                 (:a 'class: "page-link"
+                     'href: (format "?page=~a" (+ current-page 1)) ">"))))))
 
 (define (page-numbers current-page page-count)
   (if (< page-count 10)
@@ -344,16 +344,16 @@
 (define (partial:article-row feed article)
   (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
         [humandate (~t (article-date article) "MMMM d, yyyy")])
-    (h:article 'class: "row"
-               (h:h4
-                 (h:a 'href: (format "/articles/~a" (article-id article))
-                      (article-title article)))
-               #;(h:h5 (feed-title feed))
-               (h:p (string-chop (strip-html (article-content article)) 300 #:end "…"))
-               (h:time 'datetime: datetime humandate)
-               (h:a 'class: "pl1 action showonhover" 'href: (article-link article) 'target: "_blank" "read")
-               #;(h:a 'class: "pl1 action showonhover" 'href: "#save" "save")
-               (h:a 'class: "pl1 action showonhover" 'href: (format "/articles/~a/archive" (article-id article)) "archive"))))
+    (:article 'class: "row"
+              (:h4
+                (:a 'href: (format "/articles/~a" (article-id article))
+                    (article-title article)))
+              #;(:h5 (feed-title feed))
+              (:p (string-chop (strip-html (article-content article)) 300 #:end "…"))
+              (:time 'datetime: datetime humandate)
+              (:a 'class: "pl1 action showonhover" 'href: (article-link article) 'target: "_blank" "read")
+              #;(:a 'class: "pl1 action showonhover" 'href: "#save" "save")
+              (:a 'class: "pl1 action showonhover" 'href: (format "/articles/~a/archive" (article-id article)) "archive"))))
 
 
 (define (route:new-feed req)
