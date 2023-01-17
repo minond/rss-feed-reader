@@ -149,7 +149,7 @@
   (append
     (map (lambda (article)
            (:article-row null article)) articles)
-    (page-links current-page page-count)))
+    (:pagination current-page page-count)))
 
 (define (:article-row feed article)
   (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
@@ -165,7 +165,7 @@
               #;(:a 'class: "pl1 action showonhover" 'href: "#save" "save")
               (:a 'class: "pl1 action showonhover" 'href: (format "/articles/~a/archive" (article-id article)) "archive"))))
 
-(define (page-links current-page page-count)
+(define (:pagination current-page page-count)
   (if (eq? page-count 1)
     null
     (let ([numbers (page-numbers current-page page-count)])
