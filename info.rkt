@@ -2,4 +2,4 @@
 
 (define name "feeder")
 (define version "0.0.1")
-(define deps '("request" "gregor"))
+(define deps '("deta" "request" "gregor"))

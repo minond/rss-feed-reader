@@ -1,41 +1,19 @@
 #lang racket
 
-(require db)
-(require xml)
-(require xml/path)
-(require net/url-string)
-(require request/param)
-(require gregor)
+(require db
+         threading
+         deta
+         gregor
+         web-server/servlet
+         web-server/servlet-env
+         (prefix-in : scribble/html/xml)
+         (prefix-in : scribble/html/html)
+         (prefix-in : scribble/html/extra)
+         (prefix-in rss: "rss.rkt"))
 
-(require web-server/dispatch)
-(require web-server/servlet)
-(require web-server/servlet-env)
-(require web-server/http/redirect)
-
-(require (prefix-in : scribble/html/xml))
-(require (prefix-in : scribble/html/html))
-(require (prefix-in : scribble/html/extra))
-
-; (require (prefix-in rss: "rss.rkt"))
-(require "rss.rkt")
-
-
-(define (string->datetime str)
-  (let ([parse (lambda (format)
-                 (with-handlers
-                   ([exn:gregor:parse?
-                      (lambda (e) #f)])
-                   (parse-datetime str format)))])
-    (or (parse "eee, d MMM y HH:mm:ss Z")
-        (parse "eee,  d MMM y HH:mm:ss Z")
-        (parse "eee, d MMM y HH:mm:ss 'GMT'")
-        (parse "y-M-d HH:mm:ss"))))
 
 (define (integer->boolean i)
   (eq? i 1))
-
-(define (boolean->integer b)
-  (if b 1 0))
 
 (define (string-chop str maxlen #:end [end ""])
   (if (<= (string-length str) maxlen)
@@ -66,6 +44,8 @@
   (cond [(not condition) action]))
 
 
+(define *page-size* 10)
+
 (define *pool*
   (connection-pool
     (lambda ()
@@ -74,122 +54,55 @@
 (define *conn*
   (connection-pool-lease *pool*))
 
-(define *page-size* 10)
+(define-schema feed
+               ([id id/f #:primary-key #:auto-increment]
+                [rss string/f #:contract non-empty-string?]
+                [link string/f #:contract non-empty-string?]
+                [title string/f #:contract non-empty-string?]
+                [(enabled #t) boolean/f]))
 
+(define-schema article
+               ([id id/f #:primary-key #:auto-increment]
+                [feedid id/f]
+                [link string/f #:contract non-empty-string?]
+                [title string/f #:contract non-empty-string?]
+                [date datetime/f]
+                [content string/f #:contract non-empty-string?]
+                [(archived #f) boolean/f]))
 
-(define query/feed-table-create
-  "create table if not exists feeds (
-    id integer primary key autoincrement,
-    rss text,
-    link text,
-    title text,
-    enabled boolean
-  )")
-(define stmt/feed-exists (prepare *conn* "select id from feeds where rss = ?"))
-(define stmt/feed-insert (prepare *conn* "insert into feeds (rss, link, title, enabled) values (?, ?, ?, ?) returning id"))
-(define stmt/feed-select (prepare *conn* "select id, rss, link, title, enabled from feeds"))
-(define stmt/feed-select-by-id (prepare *conn* "select id, rss, link, title, enabled from feeds where id = ? limit 1"))
+(create-table! *conn* 'feed)
+(create-table! *conn* 'article)
 
-(define query/article-table-create
-  "create table if not exists articles (
-    id integer primary key autoincrement,
-    feed_id bigint,
-    link text,
-    title text,
-    date datetime,
-    content text,
-    archived boolean
-  )")
-(define stmt/article-exists (prepare *conn* "select id from articles where link = ?"))
-(define stmt/article-insert (prepare *conn* "insert into articles (feed_id, link, title, date, content, archived) values (?, ?, ?, ?, ?, ?) returning id"))
-(define stmt/article-count-unarchived (prepare *conn* "select count(*) from articles where not archived"))
-(define stmt/article-count-all (prepare *conn* "select count(*) from articles"))
-(define stmt/article-select-unarchived-by-feedid (prepare *conn* "select id, feed_id, link, title, date, content, archived from articles where feed_id = ? and not archived"))
-(define stmt/article-select-all-by-feedid (prepare *conn* "select id, feed_id, link, title, date, content, archived from articles where feed_id = ?"))
-(define stmt/article-select-by-id (prepare *conn* "select id, feed_id, link, title, date, content, archived from articles where id = ? limit 1"))
-(define stmt/article-select-unarchived (prepare *conn* "select id, feed_id, link, title, date, content, archived from articles where not archived limit ? offset ?"))
-(define stmt/article-update-archive-by-id (prepare *conn* "update articles set archived = true where id = ?"))
+(define count-articles
+  (~> (from article #:as a)
+      (select (count a.id))))
 
+(define (select-articles #:archived [archived #f] #:limit [lim *page-size*] #:offset [off 0])
+  (~> (from article #:as a)
+      (where (= a.archived ,archived))
+      (offset ,off)
+      (limit ,lim)))
 
-(define (setup! conn)
-  (query-exec conn query/feed-table-create)
-  (query-exec conn query/article-table-create))
+(define (find-article-by-id id)
+  (~> (from article #:as a)
+      (where (= a.id ,id))
+      (limit 1)))
 
-(define (record-exists conn stmt . args)
-  (let ([query (bind-prepared-statement stmt args)])
-    (not (false? (query-maybe-value conn query)))))
+(define (archive-article-by-id id)
+  (~> (from article #:as a)
+      (update [archived #t])
+      (where (= id ,id))))
 
-(define (insert-feed conn f)
-  (if (or (not (null? (rss:feed-id f))) (record-exists conn stmt/feed-exists (rss:feed-rss f)))
-    f
-    (let* ([rss (rss:feed-rss f)]
-           [link (rss:feed-link f)]
-           [title (rss:feed-title f)]
-           [enabled (boolean->integer (rss:feed-enabled f))]
-           [id (query-value conn stmt/feed-insert rss link title enabled)])
-      (rss:feed id rss link title (rss:feed-enabled f) (rss:feed-articles f)))))
+(define (find-feed-by-id id)
+  (~> (from feed #:as f)
+      (where (= f.id ,id))
+      (limit 1)))
 
-(define (load-feeds conn #:with-articles [with-articles #t])
-  (let ([rows (query-rows conn stmt/feed-select)])
-    (map (lambda (row)
-           (let* ([id (vector-ref row 0)]
-                  [articles (if with-articles (load-articles-by conn #:feedid id) '())])
-             (vector->feed row articles)))
-         rows)))
-
-(define (load-feed-by conn #:id id)
-  (let ([row (query-row conn stmt/feed-select-by-id id)])
-    (vector->feed row)))
-
-(define (vector->feed vec [articles '()])
-  (rss:feed (vector-ref vec 0)
-            null
-            (vector-ref vec 1)
-            (vector-ref vec 2)
-            (integer->boolean (vector-ref vec 3))
-            articles))
-
-(define (insert-article conn a f)
-  (if (or (not (null? (rss:article-id a))) (record-exists conn stmt/article-exists (rss:article-link a)))
-    a
-    (let* ([feedid (rss:feed-id f)]
-           [url (rss:article-link a)]
-           [title (rss:article-title a)]
-           [date (~t (rss:article-date a) "y-M-d HH:mm:ss")]
-           [content (rss:article-content a)]
-           [archived (boolean->integer (rss:article-archived a))])
-      (rss:article (query-value conn stmt/article-insert feedid url title date content archived)
-                   feedid url title date content (rss:article-archived a)))))
-
-(define (load-articles conn #:limit [limit *page-size*] #:offset [offset 0])
-  (let ([rows (query-rows conn stmt/article-select-unarchived limit offset)])
-    (map vector->article rows)))
-
-(define (load-articles-by conn #:feedid feedid #:archived [archived #f])
-  (let* ([query (if archived stmt/article-select-all-by-feedid stmt/article-select-unarchived-by-feedid)]
-         [rows (query-rows conn query feedid)])
-    (map vector->article rows)))
-
-(define (load-article-by conn #:id id)
-  (let ([row (query-row conn stmt/article-select-by-id id)])
-    (vector->article row)))
-
-(define (count-articles conn #:archived [archived #f])
-  (let* ([query (if archived stmt/article-count-all stmt/article-count-unarchived)]
-         [row (query-row conn query)])
-    (vector-ref row 0)))
-
-(define (archive-article-by conn #:id id)
-  (query conn stmt/article-update-archive-by-id id))
-
-(define (vector->article vec)
-  (rss:article (vector-ref vec 0)
-               (vector-ref vec 1)
-               (vector-ref vec 2)
-               (vector-ref vec 3)
-               (string->datetime (vector-ref vec 4))
-               (vector-ref vec 5)
-               (integer->boolean (vector-ref vec 6))))
+(define (find-feed-by-rss rss)
+  (~> (from feed #:as f)
+      (select 1)
+      (where (= f.rss ,rss))
+      (limit 1)))
 
 (define css
   (port->string
@@ -227,14 +140,14 @@
                    'value: "Add"))))
 
 (define (view:article feed article)
-  (let ([datetime (~t (rss:article-date article) "y-M-d HH:mm:ss")]
-        [humandate (~t (rss:article-date article) "MMMM d, yyyy")])
+  (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
+        [humandate (~t (article-date article) "MMMM d, yyyy")])
     (view:page
       (:article
-        (:h1 (:a 'href: (rss:article-link article) (rss:article-title article)))
-        (:h4 (rss:feed-title feed))
+        (:h1 (:a 'href: (article-link article) (article-title article)))
+        (:h4 (feed-title feed))
         (:time 'datetime: datetime humandate)
-        (:p (:literal (rss:article-content article)))))))
+        (:p (:literal (article-content article)))))))
 
 (define (view:articles articles current-page page-count)
   (view:page
@@ -275,18 +188,18 @@
                           (append acc (list a 'skip)))) whole))))
 
 (define (partial:article-row feed article)
-  (let ([datetime (~t (rss:article-date article) "y-M-d HH:mm:ss")]
-        [humandate (~t (rss:article-date article) "MMMM d, yyyy")])
+  (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
+        [humandate (~t (article-date article) "MMMM d, yyyy")])
     (:article 'class: "row"
               (:h4
-                (:a 'href: (format "/articles/~a" (rss:article-id article))
-                    (rss:article-title article)))
-              #;(:h5 (rss:feed-title feed))
-              (:p (string-chop (strip-html (rss:article-content article)) 300 #:end "…"))
+                (:a 'href: (format "/articles/~a" (article-id article))
+                    (article-title article)))
+              #;(:h5 (feed-title feed))
+              (:p (string-chop (strip-html (article-content article)) 300 #:end "…"))
               (:time 'datetime: datetime humandate)
-              (:a 'class: "pl1 action showonhover" 'href: (rss:article-link article) 'target: "_blank" "read")
+              (:a 'class: "pl1 action showonhover" 'href: (article-link article) 'target: "_blank" "read")
               #;(:a 'class: "pl1 action showonhover" 'href: "#save" "save")
-              (:a 'class: "pl1 action showonhover" 'href: (format "/articles/~a/archive" (rss:article-id article)) "archive"))))
+              (:a 'class: "pl1 action showonhover" 'href: (format "/articles/~a/archive" (article-id article)) "archive"))))
 
 
 (define (route:new-feed req)
@@ -296,33 +209,41 @@
 
 (define (route:create-feed req)
   (let* ([rss (get-binding 'rss req)]
-         [exists (record-exists *conn* stmt/feed-exists rss)])
+         [exists (integer->boolean (lookup *conn* (find-feed-by-rss rss)))])
     (unless exists
-      (let ([feed (insert-feed *conn* (rss:feed! rss))])
-        (for ([article (rss:feed-articles feed)])
-          (insert-article *conn* article feed))))
+      (let* ([feed (rss:feed! rss)]
+             [articles (rss:feed-articles feed)])
+        (define saved-feed
+          (insert-one! *conn* (make-feed #:rss (rss:feed-rss feed)
+                                         #:link (rss:feed-link feed)
+                                         #:title (rss:feed-title feed))))
+        (apply insert! *conn* (map (lambda (article)
+                                     (make-article #:feedid (feed-id saved-feed)
+                                                   #:link (rss:article-link article)
+                                                   #:title (rss:article-title article)
+                                                   #:date (rss:article-date article)
+                                                   #:content (rss:article-content article))) articles))))
     (redirect-to "/articles" permanently)))
 
 (define (route:arcticles req)
   (response/output
     (let* ([current-page (or (string->number (get-parameter 'page req)) 1)]
-           [page-count (ceiling (/ (count-articles *conn*) *page-size*))]
+           [page-count (ceiling (/ (lookup *conn* count-articles) *page-size*))]
            [offset (* (- current-page 1) *page-size*)]
-           [articles (load-articles *conn* #:offset offset)])
+           [articles (sequence->list (in-entities *conn* (select-articles #:offset offset)))])
       (lambda (op)
         (display (view:articles articles current-page page-count) op)))))
 
 (define (route:arcticle req id)
   (response/output
-    (let* ([article (load-article-by *conn* #:id id)]
-           [feed (load-feed-by *conn* #:id (rss:article-feedid article))])
+    (let* ([article (lookup *conn* (find-article-by-id id))]
+           [feed (lookup *conn* (find-feed-by-id (article-feedid article)))])
       (lambda (op)
         (display (view:article feed article) op)))))
 
 (define (route:arcticle-archive req id)
-  (begin
-    (archive-article-by *conn* #:id id)
-    (redirect-to "/articles" permanently)))
+  (query *conn* (archive-article-by-id id))
+  (redirect-to "/articles" permanently))
 
 (define-values (app-dispatch app-url)
   (dispatch-rules
