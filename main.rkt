@@ -12,9 +12,6 @@
          (prefix-in rss: "rss.rkt"))
 
 
-(define (integer->boolean i)
-  (eq? i 1))
-
 (define (string-chop str maxlen #:end [end ""])
   (if (<= (string-length str) maxlen)
     str
@@ -80,6 +77,7 @@
 (define (select-articles #:archived [archived #f] #:limit [lim *page-size*] #:offset [off 0])
   (~> (from article #:as a)
       (where (= a.archived ,archived))
+      (order-by ([date #:desc]))
       (offset ,off)
       (limit ,lim)))
 
@@ -104,57 +102,68 @@
       (where (= f.rss ,rss))
       (limit 1)))
 
-(define css
-  (port->string
-    (open-input-file "styles.css")))
+(define (:page content)
+  (let ([css (port->string (open-input-file "styles.css"))])
+    (:xml->string
+      (list (:doctype 'html)
+            (:html
+              (:head
+                (:meta 'charset: "utf-8")
+                (:meta 'name: "viewport"
+                       'content: "width=device-width, initial-scale=1.0")
+                (:title "feeder")
+                (:style css))
+              (:body
+                (:header
+                  (:table
+                    (:tr
+                      (:td
+                        (:a 'href: "/" "feeder"))
+                      (:td
+                        (:a 'class: "add-feed"
+                            'href: "/feeds/new" "+")))))
+                (:div 'class: "separator")
+                (:main content)))))))
 
-(define (view:page content)
-  (:xml->string
-    (list (:doctype 'html)
-          (:html
-            (:head
-              (:meta 'charset: "utf-8")
-              (:meta 'name: "viewport" 'content: "width=device-width, initial-scale=1.0")
-              (:title "feeder")
-              (:style css))
-            (:body
-              (:header
-                (:table
-                  (:tr
-                    (:td
-                      (:a 'href: "/" "feeder"))
-                    (:td
-                      (:a 'class: "add-feed" 'href: "/add" "+")))))
-              (:div 'class: "separator")
-              (:main content))))))
+(define (:feed-form)
+  (:form 'class: "add-feed-form"
+         'action: "/feeds/create"
+         'method: "post"
+         (:input 'type: "url"
+                 'name: "rss"
+                 'autofocus: "true"
+                 'placeholder: "https://your.blog.net/feed.rss")
+         (:input 'type: "submit"
+                 'value: "Add")))
 
-(define (view:add-feed)
-  (view:page
-    (:form 'class: "add-feed-form"
-           'method: "post"
-           (:input 'type: "url"
-                   'name: "rss"
-                   'autofocus: "true"
-                   'placeholder: "https://your.blog.net/feed.rss")
-           (:input 'type: "submit"
-                   'value: "Add"))))
-
-(define (view:article feed article)
+(define (:article-full feed article)
   (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
         [humandate (~t (article-date article) "MMMM d, yyyy")])
-    (view:page
-      (:article
-        (:h1 (:a 'href: (article-link article) (article-title article)))
-        (:h4 (feed-title feed))
-        (:time 'datetime: datetime humandate)
-        (:p (:literal (article-content article)))))))
+    (:article
+      (:h1 (:a 'href: (article-link article) (article-title article)))
+      (:h4 (feed-title feed))
+      (:time 'datetime: datetime humandate)
+      (:p (:literal (article-content article))))))
 
-(define (view:articles articles current-page page-count)
-  (view:page
-    (append
-      (map (lambda (article)
-             (partial:article-row null article)) articles)
-      (page-links current-page page-count))))
+(define (:articles-list articles current-page page-count)
+  (append
+    (map (lambda (article)
+           (:article-row null article)) articles)
+    (page-links current-page page-count)))
+
+(define (:article-row feed article)
+  (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
+        [humandate (~t (article-date article) "MMMM d, yyyy")])
+    (:article 'class: "row"
+              (:h4
+                (:a 'href: (format "/articles/~a" (article-id article))
+                    (article-title article)))
+              #;(:h5 (feed-title feed))
+              (:p (string-chop (strip-html (article-content article)) 300 #:end "…"))
+              (:time 'datetime: datetime humandate)
+              (:a 'class: "pl1 action showonhover" 'href: (article-link article) 'target: "_blank" "read")
+              #;(:a 'class: "pl1 action showonhover" 'href: "#save" "save")
+              (:a 'class: "pl1 action showonhover" 'href: (format "/articles/~a/archive" (article-id article)) "archive"))))
 
 (define (page-links current-page page-count)
   (if (eq? page-count 1)
@@ -187,29 +196,15 @@
                           (append acc (list a))
                           (append acc (list a 'skip)))) whole))))
 
-(define (partial:article-row feed article)
-  (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
-        [humandate (~t (article-date article) "MMMM d, yyyy")])
-    (:article 'class: "row"
-              (:h4
-                (:a 'href: (format "/articles/~a" (article-id article))
-                    (article-title article)))
-              #;(:h5 (feed-title feed))
-              (:p (string-chop (strip-html (article-content article)) 300 #:end "…"))
-              (:time 'datetime: datetime humandate)
-              (:a 'class: "pl1 action showonhover" 'href: (article-link article) 'target: "_blank" "read")
-              #;(:a 'class: "pl1 action showonhover" 'href: "#save" "save")
-              (:a 'class: "pl1 action showonhover" 'href: (format "/articles/~a/archive" (article-id article)) "archive"))))
 
-
-(define (route:new-feed req)
+(define (/feeds/new req)
   (response/output
     (lambda (op)
-      (display (view:add-feed) op))))
+      (display (:page (:feed-form)) op))))
 
-(define (route:create-feed req)
+(define (/feeds/create req)
   (let* ([rss (get-binding 'rss req)]
-         [exists (integer->boolean (lookup *conn* (find-feed-by-rss rss)))])
+         [exists (lookup *conn* (find-feed-by-rss rss))])
     (unless exists
       (let* ([feed (rss:feed! rss)]
              [articles (rss:feed-articles feed)])
@@ -225,34 +220,34 @@
                                                    #:content (rss:article-content article))) articles))))
     (redirect-to "/articles" permanently)))
 
-(define (route:arcticles req)
+(define (/articles req)
   (response/output
     (let* ([current-page (or (string->number (get-parameter 'page req)) 1)]
            [page-count (ceiling (/ (lookup *conn* count-articles) *page-size*))]
            [offset (* (- current-page 1) *page-size*)]
            [articles (sequence->list (in-entities *conn* (select-articles #:offset offset)))])
       (lambda (op)
-        (display (view:articles articles current-page page-count) op)))))
+        (display (:page (:articles-list articles current-page page-count)) op)))))
 
-(define (route:arcticle req id)
+(define (/arcticles/show req id)
   (response/output
     (let* ([article (lookup *conn* (find-article-by-id id))]
            [feed (lookup *conn* (find-feed-by-id (article-feedid article)))])
       (lambda (op)
-        (display (view:article feed article) op)))))
+        (display (:page (:article-full feed article)) op)))))
 
-(define (route:arcticle-archive req id)
+(define (/articles/archive req id)
   (query *conn* (archive-article-by-id id))
   (redirect-to "/articles" permanently))
 
 (define-values (app-dispatch app-url)
   (dispatch-rules
-    [("add") route:new-feed]
-    [("add") #:method "post" route:create-feed]
-    [("articles") route:arcticles]
-    [("articles" (integer-arg)) route:arcticle]
-    [("articles" (integer-arg) "archive") route:arcticle-archive]
-    [else route:arcticles]))
+    [("feeds" "new") /feeds/new]
+    [("feeds" "create") #:method "post" /feeds/create]
+    [("articles") /articles]
+    [("articles" (integer-arg)) /arcticles/show]
+    [("articles" (integer-arg) "archive") /articles/archive]
+    [else /articles]))
 
 (define (server req)
   (app-dispatch req))
