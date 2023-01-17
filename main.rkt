@@ -16,6 +16,9 @@
 (require (prefix-in : scribble/html/html))
 (require (prefix-in : scribble/html/extra))
 
+; (require (prefix-in rss: "rss.rkt"))
+(require "rss.rkt")
+
 
 (define (string->datetime str)
   (let ([parse (lambda (format)
@@ -27,9 +30,6 @@
         (parse "eee,  d MMM y HH:mm:ss Z")
         (parse "eee, d MMM y HH:mm:ss 'GMT'")
         (parse "y-M-d HH:mm:ss"))))
-
-(define (list->string xs [sep " "])
-  (string-join (map ~a xs) sep))
 
 (define (integer->boolean i)
   (eq? i 1))
@@ -66,76 +66,6 @@
   (cond [(not condition) action]))
 
 
-(struct feed (id link title enabled articles))
-(struct article (id feedid link title date content archived))
-
-
-(define (feed! url)
-  (process-feed url (download-feed url)))
-
-(define (download-feed url)
-  (let* ([response (get (string->url url))]
-         [body (http-response-body response)]
-         [root (read-xml (open-input-string body))]
-         [elem (document-element root)])
-    (xml->xexpr elem)))
-
-(define (process-feed url xexpr)
-  (if (se-path* '(feed) xexpr)
-    (process-atom-feed url xexpr)
-    (process-rss-feed url xexpr)))
-
-(define (process-atom-feed url xexpr)
-  (let* ([title (se-path* '(feed title) xexpr)]
-         [link (se-path* '(feed link #:href) xexpr)]
-         [entry-data (se-path*/list '(feed) xexpr)]
-         [entries (filter (lambda (entry)
-                            (and (pair? entry) (eq? (car entry) 'entry))) entry-data)]
-         [articles (let ([title null]
-                         [link null]
-                         [date null]
-                         [content null])
-                     (map (lambda (item)
-                            (for ([part item] #:when (pair? part))
-                              (let ([tag (car part)]
-                                    [value (cddr part)])
-                                (match tag
-                                  ['title (set! title (car value))]
-                                  ['link (set! link (list->string (se-path*/list '(link #:href) part)))]
-                                  ['published (set! date (iso8601->datetime (car value)))]
-                                  ['updated (set! date (iso8601->datetime (car value)))]
-                                  ['summary (set! content (if (and (list? (cddr part)) (cdata? (caddr part)))
-                                                         (cdata-string (caddr part))
-                                                         (list->string (cddr part) "")))]
-                                  [else null])))
-                            (article null null link title date content #f)) entries))])
-    (feed null (or url link) title #t articles)))
-
-(define (process-rss-feed url xexpr)
-  (let* ([title (se-path* '(rss channel title) xexpr)]
-         [link (se-path* '(rss channel link) xexpr)]
-         [item-data (se-path*/list '(rss channel) xexpr)]
-         [items (filter (lambda (entry)
-                          (and (pair? entry) (eq? (car entry) 'item))) item-data)]
-         [articles (let ([title null]
-                         [link null]
-                         [date null]
-                         [content null])
-                     (map (lambda (item)
-                            (for ([part item] #:when (pair? part))
-                              (let ([tag (car part)])
-                                (match tag
-                                  ['title (set! title (caddr part))]
-                                  ['link (set! link (caddr part))]
-                                  ['pubDate (set! date (string->datetime (caddr part)))]
-                                  ['description (set! content (if (and (list? (cddr part)) (cdata? (caddr part)))
-                                                             (cdata-string (caddr part))
-                                                             (list->string (cddr part) "")))]
-                                  [else null])))
-                            (article null null link title date content #f)) items))])
-    (feed null (or url link) title #t articles)))
-
-
 (define *pool*
   (connection-pool
     (lambda ()
@@ -150,14 +80,15 @@
 (define query/feed-table-create
   "create table if not exists feeds (
     id integer primary key autoincrement,
+    rss text,
     link text,
     title text,
     enabled boolean
   )")
-(define stmt/feed-exists (prepare *conn* "select id from feeds where link = ?"))
-(define stmt/feed-insert (prepare *conn* "insert into feeds (link, title, enabled) values (?, ?, ?) returning id"))
-(define stmt/feed-select (prepare *conn* "select id, link, title, enabled from feeds"))
-(define stmt/feed-select-by-id (prepare *conn* "select id, link, title, enabled from feeds where id = ? limit 1"))
+(define stmt/feed-exists (prepare *conn* "select id from feeds where rss = ?"))
+(define stmt/feed-insert (prepare *conn* "insert into feeds (rss, link, title, enabled) values (?, ?, ?, ?) returning id"))
+(define stmt/feed-select (prepare *conn* "select id, rss, link, title, enabled from feeds"))
+(define stmt/feed-select-by-id (prepare *conn* "select id, rss, link, title, enabled from feeds where id = ? limit 1"))
 
 (define query/article-table-create
   "create table if not exists articles (
@@ -189,13 +120,14 @@
     (not (false? (query-maybe-value conn query)))))
 
 (define (insert-feed conn f)
-  (if (or (not (null? (feed-id f))) (record-exists conn stmt/feed-exists (feed-link f)))
+  (if (or (not (null? (feed-id f))) (record-exists conn stmt/feed-exists (feed-rss f)))
     f
-    (let* ([url (feed-link f)]
+    (let* ([rss (feed-rss f)]
+           [link (feed-link f)]
            [title (feed-title f)]
            [enabled (boolean->integer (feed-enabled f))]
-           [id (query-value conn stmt/feed-insert url title enabled)])
-      (feed id url title (feed-enabled f) (feed-articles f)))))
+           [id (query-value conn stmt/feed-insert rss link title enabled)])
+      (feed id rss link title (feed-enabled f) (feed-articles f)))))
 
 (define (load-feeds conn #:with-articles [with-articles #t])
   (let ([rows (query-rows conn stmt/feed-select)])
@@ -211,6 +143,7 @@
 
 (define (vector->feed vec [articles '()])
   (feed (vector-ref vec 0)
+        null
         (vector-ref vec 1)
         (vector-ref vec 2)
         (integer->boolean (vector-ref vec 3))
@@ -287,7 +220,7 @@
     (:form 'class: "add-feed-form"
            'method: "post"
            (:input 'type: "url"
-                   'name: "link"
+                   'name: "rss"
                    'autofocus: "true"
                    'placeholder: "https://your.blog.net/feed.rss")
            (:input 'type: "submit"
@@ -362,10 +295,10 @@
       (display (view:add-feed) op))))
 
 (define (route:create-feed req)
-  (let* ([link (get-binding 'link req)]
-         [exists (record-exists *conn* stmt/feed-exists link)])
+  (let* ([rss (get-binding 'rss req)]
+         [exists (record-exists *conn* stmt/feed-exists rss)])
     (unless exists
-      (let ([feed (insert-feed *conn* (feed! link))])
+      (let ([feed (insert-feed *conn* (feed! rss))])
         (for ([article (feed-articles feed)])
           (insert-article *conn* article feed))))
     (redirect-to "/articles" permanently)))
