@@ -6,17 +6,14 @@
          request/param
          gregor)
 
-(provide feed! feed feed-id feed-rss feed-link feed-title feed-enabled
-         feed-articles article article-id article-feedid article-link
-         article-title article-date article-content article-archived)
+(provide feed! feed-rss feed-link feed-title feed-articles article-link
+         article-title article-date article-content)
 
 (define (feed! rss)
   (process rss (download rss)))
 
-; (struct feed (url link title articles))
-; (struct article (link title date content))
-(struct feed (id rss link title enabled articles))
-(struct article (id feedid link title date content archived))
+(struct feed (rss link title articles))
+(struct article (link title date content))
 
 (define (download rss)
   (let* ([response (get (string->url rss))]
@@ -54,8 +51,8 @@
                                                             (cdata-string (caddr part))
                                                             (list->string (cddr part) "")))]
                                   [else null])))
-                            (article null null link title date content #f)) entries))])
-    (feed null rss link title #t articles)))
+                            (article link title date content)) entries))])
+    (feed rss link title articles)))
 
 (define (process-rss rss xexpr)
   (let* ([title (se-path* '(rss channel title) xexpr)]
@@ -79,8 +76,8 @@
                                                                 (cdata-string (caddr part))
                                                                 (list->string (cddr part) "")))]
                                   [else null])))
-                            (article null null link title date content #f)) items))])
-    (feed null rss link title #t articles)))
+                            (article link title date content)) items))])
+    (feed rss link title articles)))
 
 (define (string->datetime str)
   (let ([parse (lambda (format)
