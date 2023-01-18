@@ -3,6 +3,7 @@
 (require db
          threading
          deta
+         deta/reflect
          gregor
          web-server/servlet
          web-server/servlet-env
@@ -10,6 +11,8 @@
          (prefix-in : scribble/html/html)
          (prefix-in : scribble/html/extra)
          (prefix-in rss: "rss.rkt"))
+
+(provide start)
 
 
 (define (string-chop str maxlen #:end [end ""])
@@ -37,9 +40,6 @@
   (cdr (find-pair key (request-bindings req)
                   #:default (cons key default))))
 
-(define-syntax-rule (unless condition action)
-  (cond [(not condition) action]))
-
 
 (define *page-size* 10)
 
@@ -50,6 +50,9 @@
 
 (define *conn*
   (connection-pool-lease *pool*))
+
+; Needed to we can reload this module in the repl
+(schema-registry-allow-conflicts? #t)
 
 (define-schema feed
                ([id id/f #:primary-key #:auto-increment]
@@ -252,8 +255,9 @@
 (define (server req)
   (app-dispatch req))
 
-(serve/servlet server
-               #:launch-browser? #f
-               #:servlet-path "/"
-               #:port 8000
-               #:servlet-regexp #rx"")
+(define (start)
+  (serve/servlet server
+                 #:launch-browser? #f
+                 #:servlet-path "/"
+                 #:port 8000
+                 #:servlet-regexp #rx""))
