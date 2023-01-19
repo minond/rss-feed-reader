@@ -51,7 +51,7 @@
 (define *conn*
   (connection-pool-lease *pool*))
 
-; Needed to we can reload this module in the repl
+; For interactive mode
 (schema-registry-allow-conflicts? #t)
 
 (define-schema feed
