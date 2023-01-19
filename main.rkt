@@ -56,7 +56,7 @@
 
 (define-schema feed
                ([id id/f #:primary-key #:auto-increment]
-                [rss string/f #:contract non-empty-string?]
+                [rss string/f #:unique #:contract non-empty-string?]
                 [link string/f #:contract non-empty-string?]
                 [title string/f #:contract non-empty-string?]
                 [(enabled #t) boolean/f]))
@@ -64,7 +64,7 @@
 (define-schema article
                ([id id/f #:primary-key #:auto-increment]
                 [feedid id/f]
-                [link string/f #:contract non-empty-string?]
+                [link string/f #:unique #:contract non-empty-string?]
                 [title string/f #:contract non-empty-string?]
                 [date datetime/f]
                 [content string/f #:contract non-empty-string?]
@@ -89,6 +89,11 @@
       (where (= a.id ,id))
       (limit 1)))
 
+(define (find-article-by-link link)
+  (~> (from article #:as a)
+      (where (= a.link ,link))
+      (limit 1)))
+
 (define (archive-article-by-id id)
   (~> (from article #:as a)
       (update [archived #t])
@@ -101,7 +106,6 @@
 
 (define (find-feed-by-rss rss)
   (~> (from feed #:as f)
-      (select 1)
       (where (= f.rss ,rss))
       (limit 1)))
 
@@ -209,18 +213,7 @@
   (let* ([rss (get-binding 'rss req)]
          [exists (lookup *conn* (find-feed-by-rss rss))])
     (unless exists
-      (let* ([feed (rss:feed! rss)]
-             [articles (rss:feed-articles feed)])
-        (define saved-feed
-          (insert-one! *conn* (make-feed #:rss (rss:feed-rss feed)
-                                         #:link (rss:feed-link feed)
-                                         #:title (rss:feed-title feed))))
-        (apply insert! *conn* (map (lambda (article)
-                                     (make-article #:feedid (feed-id saved-feed)
-                                                   #:link (rss:article-link article)
-                                                   #:title (rss:article-title article)
-                                                   #:date (rss:article-date article)
-                                                   #:content (rss:article-content article))) articles))))
+      (schedule-feed-download rss))
     (redirect-to "/articles" permanently)))
 
 (define (/articles req)
@@ -261,3 +254,33 @@
                  #:servlet-path "/"
                  #:port 8000
                  #:servlet-regexp #rx""))
+
+(define (schedule-feed-download rss)
+  (thread-send feed-download-thread rss))
+
+(define feed-download-thread
+  (thread
+    (lambda ()
+      (let loop ()
+        (define rss (thread-receive))
+        (define feed (rss:feed! rss))
+
+        (printf "saving feed ~a\n" rss)
+        (define saved-feed
+          (or
+            (lookup *conn* (find-feed-by-rss rss))
+            (insert-one! *conn* (make-feed #:rss (rss:feed-rss feed)
+                                           #:link (rss:feed-link feed)
+                                           #:title (rss:feed-title feed)))))
+        (printf "feed id: ~a\n" (feed-id saved-feed))
+
+        (for ([article (rss:feed-articles feed)])
+          (unless (lookup *conn* (find-article-by-link (rss:article-link article)))
+            (printf "saving article ~a\n" (rss:article-link article))
+            (insert-one! *conn* (make-article #:feedid (feed-id saved-feed)
+                                              #:link (rss:article-link article)
+                                              #:title (rss:article-title article)
+                                              #:date (rss:article-date article)
+                                              #:content (rss:article-content article)))))
+        (printf "done processing ~a\n" rss)
+        (loop)))))
