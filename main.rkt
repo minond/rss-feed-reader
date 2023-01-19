@@ -20,8 +20,15 @@
     str
     (string-append (string-trim (substring str 0 maxlen)) end)))
 
+(define (strip-xml str)
+  (~> str
+      (string-replace _ "<![CDATA[" "" #:all? #t)
+      (string-replace _ "]]>" "" #:all? #t)))
+
 (define (strip-html str)
-  (regexp-replace* #rx"(<([^>]+)>)" str ""))
+  (~> str
+      (strip-xml _)
+      (regexp-replace* #rx"(<([^>]+)>)" _ "")))
 
 (define (reduce-by-pair f xs [id '()])
   (if (< (length xs) 2)
@@ -150,7 +157,7 @@
       (:h1 (:a 'href: (article-link article) (article-title article)))
       (:h4 (feed-title feed))
       (:time 'datetime: datetime humandate)
-      (:p (:literal (article-content article))))))
+      (:p (:literal (strip-xml (article-content article)))))))
 
 (define (:articles-list articles current-page page-count)
   (append
