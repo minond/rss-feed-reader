@@ -337,27 +337,36 @@
       (render (:feed-form))))
 
 (define (/feeds/create req)
-  (let* ([rss (get-binding 'rss req)]
-         [exists (lookup *conn* (find-feed-by-rss rss))])
-    (unless exists
-      (schedule-feed-download rss))
-    (redirect-to "/articles" permanently)))
+  (if (not (authenticated? req))
+      (redirect-to "/sessions/new")
+      (let* ([rss (get-binding 'rss req)]
+             [exists (lookup *conn* (find-feed-by-rss rss))])
+        (unless exists
+          (schedule-feed-download rss))
+        (redirect-to "/articles" permanently))))
 
 (define (/articles req)
-  (let* ([current-page (or (string->number (get-parameter 'page req)) 1)]
-         [page-count (ceiling (/ (lookup *conn* count-articles) *page-size*))]
-         [offset (* (- current-page 1) *page-size*)]
-         [articles (sequence->list (in-entities *conn* (select-articles #:offset offset)))])
-    (render (:articles-list articles current-page page-count))))
+  (if (not (authenticated? req))
+      (redirect-to "/sessions/new")
+      (let* ([current-page (or (string->number (get-parameter 'page req)) 1)]
+             [page-count (ceiling (/ (lookup *conn* count-articles) *page-size*))]
+             [offset (* (- current-page 1) *page-size*)]
+             [articles (sequence->list (in-entities *conn* (select-articles #:offset offset)))])
+        (render (:articles-list articles current-page page-count)))))
 
 (define (/arcticles/show req id)
-  (let* ([article (lookup *conn* (find-article-by-id id))]
-         [feed (lookup *conn* (find-feed-by-id (article-feedid article)))])
-    (render (:article-full feed article))))
+  (if (not (authenticated? req))
+      (redirect-to "/sessions/new")
+      (let* ([article (lookup *conn* (find-article-by-id id))]
+             [feed (lookup *conn* (find-feed-by-id (article-feedid article)))])
+        (render (:article-full feed article)))))
 
 (define (/articles/archive req id)
-  (query *conn* (archive-article-by-id id))
-  (redirect-to "/articles" permanently))
+  (if (not (authenticated? req))
+      (redirect-to "/sessions/new")
+      (begin
+        (query *conn* (archive-article-by-id id))
+        (redirect-to "/articles" permanently))))
 
 (define-values (app-dispatch app-url)
   (dispatch-rules
