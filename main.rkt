@@ -296,10 +296,9 @@
     (render (:articles-list articles current-page page-count))))
 
 (define (/arcticles/show req id)
-  (response/output
-   (let* ([article (lookup *conn* (find-article-by-id id))]
-          [feed (lookup *conn* (find-feed-by-id (article-feedid article)))])
-     (render (:article-full feed article)))))
+  (let* ([article (lookup *conn* (find-article-by-id id))]
+         [feed (lookup *conn* (find-feed-by-id (article-feedid article)))])
+    (render (:article-full feed article))))
 
 (define (/articles/archive req id)
   (query *conn* (archive-article-by-id id))
