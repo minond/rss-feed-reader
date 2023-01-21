@@ -1,6 +1,9 @@
 #lang racket
 
-(require db
+(require racket/random
+         crypto
+         crypto/libcrypto
+         db
          threading
          deta
          deta/reflect
@@ -14,6 +17,7 @@
 
 (provide start)
 
+(crypto-factories libcrypto-factory)
 
 (define (string-chop str maxlen #:end [end ""])
   (if (<= (string-length str) maxlen)
@@ -40,8 +44,8 @@
                (eq? key (car x))) xs)
       default))
 
-(define (get-parameter key req)
-  (get-binding key req #:default ""))
+(define (get-parameter key req #:default [default ""])
+  (get-binding key req #:default default))
 
 (define (get-binding key req #:default [default null])
   (cdr (find-pair key (request-bindings req)
@@ -61,6 +65,12 @@
 ; For interactive mode
 (schema-registry-allow-conflicts? #t)
 
+(define-schema user
+               ([id id/f #:primary-key #:auto-increment]
+                [email string/f #:unique #:contract non-empty-string?]
+                [encrypted-password binary/f]
+                [salt binary/f]))
+
 (define-schema feed
                ([id id/f #:primary-key #:auto-increment]
                 [rss string/f #:unique #:contract non-empty-string?]
@@ -77,6 +87,7 @@
                 [content string/f #:contract non-empty-string?]
                 [(archived #f) boolean/f]))
 
+(create-table! *conn* 'user)
 (create-table! *conn* 'feed)
 (create-table! *conn* 'article)
 
@@ -139,14 +150,38 @@
                 (:div 'class: "separator")
                 (:main content)))))))
 
+(define (:user-form [email null] [password-mismatch null])
+  (:form 'action: "/users/create"
+         'method: "post"
+         (and password-mismatch
+              (:div 'class: "error-message"
+                    "Your password and confirmation did not match, please try again."))
+         (:input 'type: "email"
+                 'name: "email"
+                 'value: email
+                 'required: "true"
+                 'autofocus: "true"
+                 'autocapitalize: "false"
+                 'placeholder: "Email")
+         (:input 'type: "password"
+                 'name: "password"
+                 'required: "true"
+                 'placeholder: "Password")
+         (:input 'type: "password"
+                 'name: "password-confirm"
+                 'required: "true"
+                 'placeholder: "Password confirmation")
+         (:input 'type: "submit"
+                 'value: "Register")))
+
 (define (:feed-form)
-  (:form 'class: "add-feed-form"
-         'action: "/feeds/create"
+  (:form 'action: "/feeds/create"
          'method: "post"
          (:input 'type: "url"
                  'name: "rss"
+                 'required: "true"
                  'autofocus: "true"
-                 'placeholder: "https://your.blog.net/feed.rss")
+                 'placeholder: "RSS URL")
          (:input 'type: "submit"
                  'value: "Add")))
 
@@ -211,6 +246,29 @@
                           (append acc (list a 'skip)))) whole))))
 
 
+(define (/users/new req)
+  (let* ([email (get-parameter 'email req)]
+         [password-mismatch (get-parameter 'password-mismatch req #:default #f)])
+  (response/output
+    (lambda (op)
+      (display (:page (:user-form email password-mismatch)) op)))))
+
+(define (/users/create req)
+  (let* ([email (get-parameter 'email req)]
+         [password (get-parameter 'password req)]
+         [password-confirm (get-parameter 'password-confirm req)])
+    (if (not (equal? password password-confirm))
+      (redirect-to
+        (format "/users/new?email=~a&password-mismatch=true" email)
+        permanently)
+      (begin
+        (let-values ([(encrypted-password salt) (make-password password)])
+          (define user (make-user #:email email
+                                  #:salt salt
+                                  #:encrypted-password encrypted-password))
+          (insert-one! *conn* user))
+        (redirect-to "/articles" permanently)))))
+
 (define (/feeds/new req)
   (response/output
     (lambda (op)
@@ -245,6 +303,8 @@
 
 (define-values (app-dispatch app-url)
   (dispatch-rules
+    [("users" "new") /users/new]
+    [("users" "create") #:method "post" /users/create]
     [("feeds" "new") /feeds/new]
     [("feeds" "create") #:method "post" /feeds/create]
     [("articles") /articles]
@@ -291,3 +351,8 @@
                                               #:content (rss:article-content article)))))
         (printf "done processing ~a\n" rss)
         (loop)))))
+
+(define (make-password password #:salt [salt (crypto-random-bytes 128)])
+  (let* ([bytes (string->bytes/utf-8 password)]
+         [enc (scrypt bytes salt #:N (expt 2 14))])
+    (values enc salt)))

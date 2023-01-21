@@ -53,6 +53,31 @@ h5 {
   margin-bottom: 1em;
 }
 
+form {
+  margin: 3em auto;
+  max-width: 40em;
+}
+
+form input[type=url],
+form input[type=input],
+form input[type=email],
+form input[type=password] {
+  border-width: 1px 1px 1.5px 1px;
+  border-style: solid;
+  border-color: rgb(187, 187, 187) rgb(187, 187, 187) rgb(138, 138, 138) rgb(187, 187, 187);
+  padding: 0.5em;
+  width: 100%;
+  font-size: 1.1em;
+  margin: 0.25em 0;
+}
+
+form input[type=button],
+form input[type=submit],
+form input[type=cancel] {
+  font-size: 1.1em;
+  margin-top: 0.5em;
+}
+
 .pl1 {
   padding-left: 1em;
 }
@@ -118,22 +143,10 @@ article.row p {
   text-decoration: none;
 }
 
-.add-feed-form {
-  margin: 3em 0;
-  text-align: center;
-}
-
-.add-feed-form input[type=url] {
-  border: 1px solid rgb(187, 187, 187);
+.error-message {
+  background-color: rgb(255, 233, 233);
+  border: 1px solid rgb(255, 115, 115);
+  margin-bottom: 0.25em;
   padding: 0.5em;
-  width: 50%;
-  font-size: 1.1em;
-}
-
-.add-feed-form input[type=submit] {
-  border: none;
-  padding: 0.5em;
-  font-size: 1em;
-  background: none;
-  text-transform: lowercase;
+  width: 100%;
 }
