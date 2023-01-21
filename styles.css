@@ -76,6 +76,11 @@ form input[type=submit],
 form input[type=cancel] {
   font-size: 1.1em;
   margin-top: 0.5em;
+  margin-right: 0.5em;
+}
+
+form a {
+  font-size: 0.8em;
 }
 
 .pl1 {

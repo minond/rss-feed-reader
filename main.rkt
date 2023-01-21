@@ -154,6 +154,24 @@
              (:div 'class: "separator")
              (:main content)))))))
 
+(define (:login-form [email null] [password-mismatch null])
+  (:form 'action: "/sessions/create"
+         'method: "post"
+         (:input 'type: "email"
+                 'name: "email"
+                 'required: "true"
+                 'autofocus: "true"
+                 'autocapitalize: "false"
+                 'placeholder: "Email")
+         (:input 'type: "password"
+                 'name: "password"
+                 'required: "true"
+                 'placeholder: "Password")
+         (:input 'type: "submit"
+                 'value: "Login")
+         (:a 'href: "/users/new"
+             "or register instead")))
+
 (define (:user-form [email null] [password-mismatch null])
   (:form 'action: "/users/create"
          'method: "post"
@@ -176,7 +194,9 @@
                  'required: "true"
                  'placeholder: "Password confirmation")
          (:input 'type: "submit"
-                 'value: "Register")))
+                 'value: "Register")
+         (:a 'href: "/sessions/new"
+             "or login instead")))
 
 (define (:feed-form)
   (:form 'action: "/feeds/create"
@@ -250,6 +270,9 @@
                               (append acc (list a 'skip)))) whole))))
 
 
+(define (/sessions/new req)
+  (render (:login-form)))
+
 (define (/users/new req)
   (let* ([email (get-parameter 'email req)]
          [password-mismatch (get-parameter 'password-mismatch req #:default #f)])
@@ -278,7 +301,7 @@
 
 (define (/feeds/new req)
   (if (not (authenticated? req))
-      (redirect-to "/users/new")
+      (redirect-to "/sessions/new")
       (render (:feed-form))))
 
 (define (/feeds/create req)
@@ -306,6 +329,7 @@
 
 (define-values (app-dispatch app-url)
   (dispatch-rules
+   [("sessions" "new") /sessions/new]
    [("users" "new") /users/new]
    [("users" "create") #:method "post" /users/create]
    [("feeds" "new") /feeds/new]
