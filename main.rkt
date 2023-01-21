@@ -85,7 +85,7 @@
 
 (define-schema article
   ([id id/f #:primary-key #:auto-increment]
-   [feedid id/f]
+   [feed-id id/f]
    [link string/f #:unique #:contract non-empty-string?]
    [title string/f #:contract non-empty-string?]
    [date datetime/f]
@@ -289,7 +289,7 @@
   (let* ([email (get-parameter 'email req)]
          [password (get-parameter 'password req)]
          [user (lookup *conn* (find-user-by-email email))])
-    (if (check-password password user)
+    (if (and user (check-password password user))
         (redirect-to "/articles" permanently
                      #:headers (list
                                 (cookie->header
@@ -358,7 +358,7 @@
   (if (not (authenticated? req))
       (redirect-to "/sessions/new")
       (let* ([article (lookup *conn* (find-article-by-id id))]
-             [feed (lookup *conn* (find-feed-by-id (article-feedid article)))])
+             [feed (lookup *conn* (find-feed-by-id (article-feed-id article)))])
         (render (:article-full feed article)))))
 
 (define (/articles/archive req id)
@@ -420,7 +420,7 @@
        (for ([article (rss:feed-articles feed)])
          (unless (lookup *conn* (find-article-by-link (rss:article-link article)))
            (printf "saving article ~a\n" (rss:article-link article))
-           (insert-one! *conn* (make-article #:feedid (feed-id saved-feed)
+           (insert-one! *conn* (make-article #:feed-id (feed-id saved-feed)
                                              #:link (rss:article-link article)
                                              #:title (rss:article-title article)
                                              #:date (rss:article-date article)
