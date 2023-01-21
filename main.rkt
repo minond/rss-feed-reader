@@ -386,10 +386,11 @@
                (equal? session-cookie-name
                        (client-cookie-name cookie)))
              (request-cookies req)))
-    (unless session-cookie (return #f))
-    (define key (client-cookie-value session-cookie))
-    (unless key (return #f))
-    (hash-ref sessions key #f)))
+    (unless session-cookie
+      (return #f))
+    (hash-ref sessions
+              (client-cookie-value session-cookie)
+              #f)))
 
 (define (create-session #:user-id user-id)
   (let ([key (random-string)]
