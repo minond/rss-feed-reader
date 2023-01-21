@@ -24,8 +24,8 @@
 
 (define (process rss xexpr)
   (if (se-path* '(feed) xexpr)
-    (process-atom rss xexpr)
-    (process-rss rss xexpr)))
+      (process-atom rss xexpr)
+      (process-rss rss xexpr)))
 
 (define (process-atom rss xexpr)
   (let* ([title (se-path* '(feed title) xexpr)]
@@ -48,8 +48,8 @@
                                   ['published (set! date (iso8601->datetime (car value)))]
                                   ['updated (set! date (iso8601->datetime (car value)))]
                                   ['summary (set! content (if (and (list? (cddr part)) (cdata? (caddr part)))
-                                                            (cdata-string (caddr part))
-                                                            (list->string (cddr part) "")))]
+                                                              (cdata-string (caddr part))
+                                                              (list->string (cddr part) "")))]
                                   [else null])))
                             (article link title date content)) entries))])
     (feed rss link title articles)))
@@ -73,8 +73,8 @@
                                   ['link (set! link (caddr part))]
                                   ['pubDate (set! date (string->datetime (caddr part)))]
                                   ['description (set! content (if (and (list? (cddr part)) (cdata? (caddr part)))
-                                                                (cdata-string (caddr part))
-                                                                (list->string (cddr part) "")))]
+                                                                  (cdata-string (caddr part))
+                                                                  (list->string (cddr part) "")))]
                                   [else null])))
                             (article link title date content)) items))])
     (feed rss link title articles)))
@@ -82,8 +82,8 @@
 (define (string->datetime str)
   (let ([parse (lambda (format)
                  (with-handlers
-                   ([exn:gregor:parse?
-                      (lambda (e) #f)])
+                     ([exn:gregor:parse?
+                       (lambda (e) #f)])
                    (parse-datetime str format)))])
     (or (parse "eee, d MMM y HH:mm:ss Z")
         (parse "eee,  d MMM y HH:mm:ss Z")
