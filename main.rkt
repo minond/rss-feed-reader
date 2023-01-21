@@ -179,12 +179,9 @@
   (:div 'class: (format "flash ~a" kind)
         (:div 'class: "flash-text" text)))
 
-(define (:login-form [email null] [show-error #f])
+(define (:login-form [email null])
   (:form 'action: "/sessions/create"
          'method: "post"
-         (and show-error
-              (:div 'class: "error-message"
-                    "Invalid credentials, please try again."))
          (:input 'type: "email"
                  'name: "email"
                  'value: email
@@ -201,12 +198,9 @@
          (:a 'href: "/users/new"
              "or register instead")))
 
-(define (:user-form [email null] [password-mismatch null])
+(define (:user-form [email null])
   (:form 'action: "/users/create"
          'method: "post"
-         (and password-mismatch
-              (:div 'class: "error-message"
-                    "Your password and confirmation did not match, please try again."))
          (:input 'type: "email"
                  'name: "email"
                  'value: email
@@ -300,12 +294,15 @@
 
 
 (define (/sessions/new req)
-  (let ([email (get-parameter 'email req)]
-        [show-error (get-parameter 'invalid req #:default #f)])
-    (render (:login-form email show-error))))
+  (let* ([session (lookup-session req)]
+         [flash (session-flash session)]
+         [email (get-parameter 'email req)])
+    (render (:login-form email)
+            #:flash flash)))
 
 (define (/sessions/create req)
-  (let* ([email (get-parameter 'email req)]
+  (let* ([session (lookup-session req)]
+         [email (get-parameter 'email req)]
          [password (get-parameter 'password req)]
          [user (lookup *conn* (find-user-by-email email))])
     (if (and user (check-password password user))
@@ -313,9 +310,13 @@
                      #:headers (list
                                 (cookie->header
                                  (create-session-cookie #:user-id (user-id user)))))
-        (redirect-to
-         (format "/sessions/new?email=~a&invalid=true" email)
-         permanently))))
+        (~> session
+            (update-session-cookie
+             _ #:flash (make-flash #:notice "Invalid credentials, please try again."))
+            (cookie->header _)
+            (list _)
+            (redirect-to (format "/sessions/new?email=~a" email) permanently
+                         #:headers _)))))
 
 (define (/sessions/destroy req)
   (destroy-session req)
@@ -325,18 +326,25 @@
                            (clear-session-coookie)))))
 
 (define (/users/new req)
-  (let ([email (get-parameter 'email req)]
-        [password-mismatch (get-parameter 'password-mismatch req #:default #f)])
-    (render (:user-form email password-mismatch))))
+  (let* ([session (lookup-session req)]
+         [flash (session-flash session)]
+         [email (get-parameter 'email req)])
+    (render (:user-form email)
+            #:flash flash)))
 
 (define (/users/create req)
-  (let* ([email (get-parameter 'email req)]
+  (let* ([session (lookup-session req)]
+         [email (get-parameter 'email req)]
          [password (get-parameter 'password req)]
          [password-confirm (get-parameter 'password-confirm req)])
     (if (not (equal? password password-confirm))
-        (redirect-to
-         (format "/users/new?email=~a&password-mismatch=true" email)
-         permanently)
+        (~> session
+            (update-session-cookie
+             _ #:flash (make-flash #:notice "Your password and confirmation did not match, please try again."))
+            (cookie->header _)
+            (list _)
+            (redirect-to (format "/users/new?email=~a" email) permanently
+                         #:headers _))
         (begin
           (let-values ([(encrypted-password salt) (make-password password)])
             (define user
@@ -503,10 +511,10 @@
   (let/cc return
     (define session-cookie (get-session-cookie req))
     (unless session-cookie
-      (return #f))
+      (return (session #f #f)))
     (hash-ref sessions
               (client-cookie-value session-cookie)
-              #f)))
+              (session #f #f))))
 
 (define (destroy-session req)
   (let/cc return

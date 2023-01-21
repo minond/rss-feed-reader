@@ -163,11 +163,3 @@ article.row p {
 .add-feed:hover {
   text-decoration: none;
 }
-
-.error-message {
-  background-color: rgb(255, 233, 233);
-  border: 1px solid rgb(255, 115, 115);
-  margin-bottom: 0.25em;
-  padding: 0.5em;
-  width: 100%;
-}
