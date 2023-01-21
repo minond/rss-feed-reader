@@ -98,20 +98,23 @@
 (create-table! *conn* 'feed)
 (create-table! *conn* 'article)
 
-(define count-articles
+(define (count-articles #:user-id user-id)
   (~> (from article #:as a)
-      (select (count a.id))))
+      (select (count a.id))
+      (where (= a.user-id ,user-id))))
 
-(define (select-articles #:archived [archived #f] #:limit [lim *page-size*] #:offset [off 0])
+(define (select-articles #:user-id user-id #:archived [archived #f] #:limit [lim *page-size*] #:offset [off 0])
   (~> (from article #:as a)
-      (where (= a.archived ,archived))
+      (where (and (= a.user-id ,user-id)
+                  (= a.archived ,archived)))
       (order-by ([date #:desc]))
       (offset ,off)
       (limit ,lim)))
 
-(define (find-article-by-id id)
+(define (find-article-by-id #:id id #:user-id user-id)
   (~> (from article #:as a)
-      (where (= a.id ,id))
+      (where (and (= a.id ,id)
+                  (= a.user-id ,user-id)))
       (limit 1)))
 
 (define (find-article-by-link link)
@@ -124,9 +127,10 @@
       (update [archived #t])
       (where (= id ,id))))
 
-(define (find-feed-by-id id)
+(define (find-feed-by-id #:id id #:user-id user-id)
   (~> (from feed #:as f)
-      (where (= f.id ,id))
+      (where (and (= f.id ,id)
+                  (= f.user-id ,user-id)))
       (limit 1)))
 
 (define (find-feed-by-rss rss)
@@ -352,17 +356,25 @@
 (define (/articles req)
   (if (not (authenticated? req))
       (redirect-to "/sessions/new")
-      (let* ([current-page (or (string->number (get-parameter 'page req)) 1)]
-             [page-count (ceiling (/ (lookup *conn* count-articles) *page-size*))]
+      (let* ([session (lookup-session req)]
+             [user-id (session-user-id session)]
+             [current-page (or (string->number (get-parameter 'page req)) 1)]
+             [page-count (ceiling (/ (lookup *conn* (count-articles #:user-id user-id)) *page-size*))]
              [offset (* (- current-page 1) *page-size*)]
-             [articles (sequence->list (in-entities *conn* (select-articles #:offset offset)))])
+             [articles (sequence->list
+                        (in-entities *conn* (select-articles #:user-id user-id
+                                                             #:offset offset)))])
         (render (:articles-list articles current-page page-count)))))
 
 (define (/arcticles/show req id)
   (if (not (authenticated? req))
       (redirect-to "/sessions/new")
-      (let* ([article (lookup *conn* (find-article-by-id id))]
-             [feed (lookup *conn* (find-feed-by-id (article-feed-id article)))])
+      (let* ([session (lookup-session req)]
+             [user-id (session-user-id session)]
+             [article (lookup *conn* (find-article-by-id #:id id
+                                                         #:user-id user-id))]
+             [feed (lookup *conn* (find-feed-by-id #:id (article-feed-id article)
+                                                   #:user-id user-id))])
         (render (:article-full feed article)))))
 
 (define (/articles/archive req id)
