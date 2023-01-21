@@ -79,7 +79,7 @@
 (define-schema feed
   ([id id/f #:primary-key #:auto-increment]
    [user-id id/f]
-   [rss string/f #:unique #:contract non-empty-string?]
+   [rss string/f #:contract non-empty-string?]
    [link string/f #:contract non-empty-string?]
    [title string/f #:contract non-empty-string?]
    [(enabled #t) boolean/f]))
@@ -88,7 +88,7 @@
   ([id id/f #:primary-key #:auto-increment]
    [user-id id/f]
    [feed-id id/f]
-   [link string/f #:unique #:contract non-empty-string?]
+   [link string/f #:contract non-empty-string?]
    [title string/f #:contract non-empty-string?]
    [date datetime/f]
    [content string/f #:contract non-empty-string?]
@@ -103,7 +103,10 @@
       (select (count a.id))
       (where (= a.user-id ,user-id))))
 
-(define (select-articles #:user-id user-id #:archived [archived #f] #:limit [lim *page-size*] #:offset [off 0])
+(define (select-articles #:user-id user-id
+                         #:archived [archived #f]
+                         #:limit [lim *page-size*]
+                         #:offset [off 0])
   (~> (from article #:as a)
       (where (and (= a.user-id ,user-id)
                   (= a.archived ,archived)))
@@ -117,9 +120,10 @@
                   (= a.user-id ,user-id)))
       (limit 1)))
 
-(define (find-article-by-link link)
+(define (find-article-by-link #:user-id user-id #:link link)
   (~> (from article #:as a)
-      (where (= a.link ,link))
+      (where (and (= a.user-id ,user-id)
+                  (= a.link ,link)))
       (limit 1)))
 
 (define (archive-article-by-id id)
@@ -133,9 +137,10 @@
                   (= f.user-id ,user-id)))
       (limit 1)))
 
-(define (find-feed-by-rss rss)
+(define (find-feed-by-rss #:user-id user-id  #:rss rss)
   (~> (from feed #:as f)
-      (where (= f.rss ,rss))
+      (where (and (= f.user-id ,user-id)
+                  (= f.rss ,rss)))
       (limit 1)))
 
 (define (find-user-by-email email)
@@ -348,7 +353,8 @@
       (let* ([session (lookup-session req)]
              [user-id (session-user-id session)]
              [rss (get-binding 'rss req)]
-             [exists (lookup *conn* (find-feed-by-rss rss))])
+             [exists (lookup *conn* (find-feed-by-rss #:user-id user-id
+                                                      #:rss rss))])
         (unless exists
           (schedule-feed-download user-id rss))
         (redirect-to "/articles" permanently))))
@@ -427,7 +433,8 @@
        (printf "saving feed ~a\n" rss)
        (define saved-feed
          (or
-          (lookup *conn* (find-feed-by-rss rss))
+          (lookup *conn* (find-feed-by-rss #:user-id user-id
+                                           #:rss rss))
           (insert-one! *conn* (make-feed #:user-id user-id
                                          #:rss (rss:feed-rss feed)
                                          #:link (rss:feed-link feed)
@@ -435,7 +442,9 @@
        (printf "feed id: ~a\n" (feed-id saved-feed))
 
        (for ([article (rss:feed-articles feed)])
-         (unless (lookup *conn* (find-article-by-link (rss:article-link article)))
+         (define link (rss:article-link article))
+         (unless (lookup *conn* (find-article-by-link #:user-id user-id
+                                                      #:link link))
            (printf "saving article ~a\n" (rss:article-link article))
            (insert-one! *conn* (make-article #:user-id user-id
                                              #:feed-id (feed-id saved-feed)
