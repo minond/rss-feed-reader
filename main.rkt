@@ -10,6 +10,7 @@
          gregor
          web-server/servlet
          web-server/servlet-env
+         web-server/http/cookie
          (prefix-in : scribble/html/xml)
          (prefix-in : scribble/html/html)
          (prefix-in : scribble/html/extra)
@@ -18,6 +19,9 @@
 (provide start)
 
 (crypto-factories libcrypto-factory)
+
+(define (date->rfc7231 date)
+  (~t date "E, d MMM yyyy 00:00:00"))
 
 (define (string-chop str maxlen #:end [end ""])
   (if (<= (string-length str) maxlen)
@@ -263,16 +267,23 @@
          permanently)
         (begin
           (let-values ([(encrypted-password salt) (make-password password)])
-            (define user (make-user #:email email
-                                    #:salt salt
-                                    #:encrypted-password encrypted-password))
-            (insert-one! *conn* user))
-          (redirect-to "/articles" permanently)))))
+            (define user
+              (insert-one! *conn*
+                           (make-user #:email email
+                                      #:salt salt
+                                      #:encrypted-password encrypted-password)))
+            (define session-cookie
+              (create-session-cookie #:user-id (user-id user)))
+            (redirect-to "/feeds/new" permanently
+                         #:headers (list
+                                    (cookie->header session-cookie))))))))
 
 (define (/feeds/new req)
-  (response/output
-   (lambda (op)
-     (display (:page (:feed-form)) op))))
+  (if (not (authenticated? req))
+      (redirect-to "/users/new")
+      (response/output
+       (lambda (op)
+         (display (:page (:feed-form)) op)))))
 
 (define (/feeds/create req)
   (let* ([rss (get-binding 'rss req)]
@@ -351,6 +362,52 @@
                                              #:content (rss:article-content article)))))
        (printf "done processing ~a\n" rss)
        (loop)))))
+
+(define charset
+  (map integer->char
+       (append (inclusive-range 48 57)
+               (inclusive-range 65 90)
+               (inclusive-range 97 122))))
+
+(define (random-item xs)
+  (sequence-ref xs (random (sequence-length xs))))
+
+(define (random-string [len 32])
+  (list->string
+   (map (lambda (x)
+          (random-item charset))
+        (make-list len 0))))
+
+(define session-cookie-name "session")
+(define sessions (make-hash))
+(struct session (user-id))
+
+(define (lookup-session req)
+  (let/cc return
+    (define session-cookie
+      (findf (lambda (cookie)
+               (equal? session-cookie-name
+                       (client-cookie-name cookie)))
+             (request-cookies req)))
+    (unless session-cookie (return #f))
+    (define key (client-cookie-value session-cookie))
+    (unless key (return #f))
+    (hash-ref sessions key #f)))
+
+(define (create-session #:user-id user-id)
+  (let ([key (random-string)]
+        [data (session user-id)])
+    (hash-set! sessions key data)
+    key))
+
+(define (create-session-cookie #:user-id user-id)
+  (make-cookie session-cookie-name
+               (create-session #:user-id user-id)
+               #:path "/"
+               #:expires (date->rfc7231 (+years (today/utc) 1))))
+
+(define (authenticated? req)
+  (not (eq? #f (lookup-session req))))
 
 (define (make-password password #:salt [salt (crypto-random-bytes 128)])
   (let* ([bytes (string->bytes/utf-8 password)]
