@@ -78,6 +78,7 @@
 
 (define-schema feed
   ([id id/f #:primary-key #:auto-increment]
+   [user-id id/f]
    [rss string/f #:unique #:contract non-empty-string?]
    [link string/f #:contract non-empty-string?]
    [title string/f #:contract non-empty-string?]
@@ -85,6 +86,7 @@
 
 (define-schema article
   ([id id/f #:primary-key #:auto-increment]
+   [user-id id/f]
    [feed-id id/f]
    [link string/f #:unique #:contract non-empty-string?]
    [title string/f #:contract non-empty-string?]
@@ -339,10 +341,12 @@
 (define (/feeds/create req)
   (if (not (authenticated? req))
       (redirect-to "/sessions/new")
-      (let* ([rss (get-binding 'rss req)]
+      (let* ([session (lookup-session req)]
+             [user-id (session-user-id session)]
+             [rss (get-binding 'rss req)]
              [exists (lookup *conn* (find-feed-by-rss rss))])
         (unless exists
-          (schedule-feed-download rss))
+          (schedule-feed-download user-id rss))
         (redirect-to "/articles" permanently))))
 
 (define (/articles req)
@@ -398,21 +402,22 @@
    (lambda (op)
      (display (:page content) op))))
 
-(define (schedule-feed-download rss)
-  (thread-send feed-download-thread rss))
+(define (schedule-feed-download user-id rss)
+  (thread-send feed-download-thread (list user-id rss)))
 
 (define feed-download-thread
   (thread
    (lambda ()
      (let loop ()
-       (define rss (thread-receive))
+       (match-define (list user-id rss) (thread-receive))
        (define feed (rss:feed! rss))
 
        (printf "saving feed ~a\n" rss)
        (define saved-feed
          (or
           (lookup *conn* (find-feed-by-rss rss))
-          (insert-one! *conn* (make-feed #:rss (rss:feed-rss feed)
+          (insert-one! *conn* (make-feed #:user-id user-id
+                                         #:rss (rss:feed-rss feed)
                                          #:link (rss:feed-link feed)
                                          #:title (rss:feed-title feed)))))
        (printf "feed id: ~a\n" (feed-id saved-feed))
@@ -420,7 +425,8 @@
        (for ([article (rss:feed-articles feed)])
          (unless (lookup *conn* (find-article-by-link (rss:article-link article)))
            (printf "saving article ~a\n" (rss:article-link article))
-           (insert-one! *conn* (make-article #:feed-id (feed-id saved-feed)
+           (insert-one! *conn* (make-article #:user-id user-id
+                                             #:feed-id (feed-id saved-feed)
                                              #:link (rss:article-link article)
                                              #:title (rss:article-title article)
                                              #:date (rss:article-date article)
