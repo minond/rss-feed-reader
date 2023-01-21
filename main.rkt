@@ -22,7 +22,7 @@
 (crypto-factories libcrypto-factory)
 
 (define (date->rfc7231 date)
-  (~t date "E, d MMM yyyy 00:00:00"))
+  (~t date "E, d MMM yyyy HH:mm:ss"))
 
 (define (string-chop str maxlen #:end [end ""])
   (if (<= (string-length str) maxlen)
@@ -148,7 +148,7 @@
       (where (= email ,email))
       (limit 1)))
 
-(define (:page content)
+(define (:page content #:flash [flash null])
   (let ([css (port->string (open-input-file "styles.css"))])
     (:xml->string
      (list (:doctype 'html)
@@ -169,7 +169,15 @@
                  (:a 'class: "add-feed"
                      'href: "/feeds/new" "+")))))
              (:div 'class: "separator")
+             (let ([alert (read-flash flash 'alert)]
+                   [notice (read-flash flash 'notice)])
+               (list (and alert (:flash 'alert alert))
+                     (and notice (:flash 'notice notice))))
              (:main content)))))))
+
+(define (:flash kind text)
+  (:div 'class: (format "flash ~a" kind)
+        (:div 'class: "flash-text" text)))
 
 (define (:login-form [email null] [show-error #f])
   (:form 'action: "/sessions/create"
@@ -357,12 +365,22 @@
                                                       #:rss rss))])
         (unless exists
           (schedule-feed-download user-id rss))
-        (redirect-to "/articles" permanently))))
+        (define flash
+          (if exists
+              (make-flash #:notice "This feed already exists.")
+              (make-flash #:alert "Downloading feed data and articles...")))
+        (~> session
+            (update-session-cookie _ #:flash flash)
+            (cookie->header _)
+            (list _)
+            (redirect-to "/articles" permanently
+                         #:headers _)))))
 
 (define (/articles req)
   (if (not (authenticated? req))
       (redirect-to "/sessions/new")
       (let* ([session (lookup-session req)]
+             [flash (session-flash session)]
              [user-id (session-user-id session)]
              [current-page (or (string->number (get-parameter 'page req)) 1)]
              [page-count (ceiling (/ (lookup *conn* (count-articles #:user-id user-id)) *page-size*))]
@@ -370,7 +388,8 @@
              [articles (sequence->list
                         (in-entities *conn* (select-articles #:user-id user-id
                                                              #:offset offset)))])
-        (render (:articles-list articles current-page page-count)))))
+        (render (:articles-list articles current-page page-count)
+                #:flash flash))))
 
 (define (/arcticles/show req id)
   (if (not (authenticated? req))
@@ -415,10 +434,10 @@
                  #:port 8000
                  #:servlet-regexp #rx""))
 
-(define (render content)
+(define (render content #:flash [flash null])
   (response/output
    (lambda (op)
-     (display (:page content) op))))
+     (display (:page content #:flash flash) op))))
 
 (define (schedule-feed-download user-id rss)
   (thread-send feed-download-thread (list user-id rss)))
@@ -472,7 +491,7 @@
 
 (define session-cookie-name "session")
 (define sessions (make-hash))
-(struct session (user-id))
+(struct session (user-id flash))
 
 (define (get-session-cookie req)
   (findf (lambda (cookie)
@@ -497,23 +516,46 @@
     (hash-remove! sessions
                   (client-cookie-value session-cookie))))
 
-(define (create-session #:user-id user-id)
+(define (create-session user-id flash)
   (let ([key (random-string)]
-        [data (session user-id)])
+        [data (session user-id flash)])
     (hash-set! sessions key data)
     key))
 
-(define (create-session-cookie #:user-id user-id)
+(define (create-session-cookie #:user-id user-id #:flash [flash #f])
   (make-cookie session-cookie-name
-               (create-session #:user-id user-id)
+               (create-session user-id flash)
                #:path "/"
-               #:expires (date->rfc7231 (+years (today/utc) 1))))
+               #:expires (date->rfc7231 (+years (now/utc) 1))))
+
+(define (update-session-cookie session #:user-id [user-id #f] #:flash [flash #f])
+  (let ([orig-user-id (session-user-id session)]
+        [orig-flash (session-flash session)])
+    (create-session-cookie #:user-id (or user-id orig-user-id)
+                           #:flash (or flash orig-flash))))
 
 (define (clear-session-coookie)
   (logout-id-cookie session-cookie-name #:path "/"))
 
 (define (authenticated? req)
-  (not (eq? #f (lookup-session req))))
+  (let ([session (lookup-session req)])
+    (and session (session-user-id session))))
+
+(define flash-cookie-name "flash")
+(struct flash (expires alert notice) #:prefab)
+
+(define (make-flash #:alert [alert #f]
+                    #:notice [notice #f])
+  (flash (+seconds (now/utc) 1)
+         alert
+         notice))
+
+(define (read-flash flash field)
+  (if (or (not flash) (null? flash) (datetime<=? (flash-expires flash) (now/utc)))
+      #f
+      (match field
+        ['alert (flash-alert flash)]
+        ['notice (flash-notice flash)])))
 
 (define (make-password password #:salt [salt (crypto-random-bytes 128)])
   (let* ([bytes (string->bytes/utf-8 password)]

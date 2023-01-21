@@ -22,6 +22,22 @@ main {
   max-width: 50em;
 }
 
+.flash-text {
+  margin: 0 auto;
+  max-width: 50em;
+  padding: 1em;
+}
+
+.flash.alert {
+  border-bottom: 1px solid rgb(163, 223, 163);
+  background-color: rgb(245, 255, 245);
+}
+
+.flash.notice {
+  border-bottom: 1px solid rgb(233, 170, 170);
+  background-color: rgb(255, 240, 240);
+}
+
 header table {
   width: 100%;
 }
