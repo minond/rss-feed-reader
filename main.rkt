@@ -253,9 +253,7 @@
 (define (/users/new req)
   (let* ([email (get-parameter 'email req)]
          [password-mismatch (get-parameter 'password-mismatch req #:default #f)])
-    (response/output
-     (lambda (op)
-       (display (:page (:user-form email password-mismatch)) op)))))
+    (render (:user-form email password-mismatch))))
 
 (define (/users/create req)
   (let* ([email (get-parameter 'email req)]
@@ -281,9 +279,7 @@
 (define (/feeds/new req)
   (if (not (authenticated? req))
       (redirect-to "/users/new")
-      (response/output
-       (lambda (op)
-         (display (:page (:feed-form)) op)))))
+      (render (:feed-form))))
 
 (define (/feeds/create req)
   (let* ([rss (get-binding 'rss req)]
@@ -293,20 +289,17 @@
     (redirect-to "/articles" permanently)))
 
 (define (/articles req)
-  (response/output
-   (let* ([current-page (or (string->number (get-parameter 'page req)) 1)]
-          [page-count (ceiling (/ (lookup *conn* count-articles) *page-size*))]
-          [offset (* (- current-page 1) *page-size*)]
-          [articles (sequence->list (in-entities *conn* (select-articles #:offset offset)))])
-     (lambda (op)
-       (display (:page (:articles-list articles current-page page-count)) op)))))
+  (let* ([current-page (or (string->number (get-parameter 'page req)) 1)]
+         [page-count (ceiling (/ (lookup *conn* count-articles) *page-size*))]
+         [offset (* (- current-page 1) *page-size*)]
+         [articles (sequence->list (in-entities *conn* (select-articles #:offset offset)))])
+    (render (:articles-list articles current-page page-count))))
 
 (define (/arcticles/show req id)
   (response/output
    (let* ([article (lookup *conn* (find-article-by-id id))]
           [feed (lookup *conn* (find-feed-by-id (article-feedid article)))])
-     (lambda (op)
-       (display (:page (:article-full feed article)) op)))))
+     (render (:article-full feed article)))))
 
 (define (/articles/archive req id)
   (query *conn* (archive-article-by-id id))
@@ -332,6 +325,11 @@
                  #:servlet-path "/"
                  #:port 8000
                  #:servlet-regexp #rx""))
+
+(define (render content)
+  (response/output
+   (lambda (op)
+     (display (:page content) op))))
 
 (define (schedule-feed-download rss)
   (thread-send feed-download-thread rss))
