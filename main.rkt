@@ -11,6 +11,7 @@
          web-server/servlet
          web-server/servlet-env
          web-server/http/cookie
+         web-server/http/id-cookie
          (prefix-in : scribble/html/xml)
          (prefix-in : scribble/html/html)
          (prefix-in : scribble/html/extra)
@@ -297,6 +298,13 @@
          (format "/sessions/new?email=~a&invalid=true" email)
          permanently))))
 
+(define (/sessions/destroy req)
+  (destroy-session req)
+  (redirect-to "/sessions/new" permanently
+               #:headers (list
+                          (cookie->header
+                           (clear-session-coookie)))))
+
 (define (/users/new req)
   (let ([email (get-parameter 'email req)]
         [password-mismatch (get-parameter 'password-mismatch req #:default #f)])
@@ -355,6 +363,8 @@
   (dispatch-rules
    [("sessions" "new") /sessions/new]
    [("sessions" "create") #:method "post" /sessions/create]
+   [("sessions" "destroy") #:method "delete"  /sessions/destroy]
+   [("sessions" "destroy") /sessions/destroy]
    [("users" "new") /users/new]
    [("users" "create") #:method "post" /users/create]
    [("feeds" "new") /feeds/new]
@@ -428,18 +438,28 @@
 (define sessions (make-hash))
 (struct session (user-id))
 
+(define (get-session-cookie req)
+  (findf (lambda (cookie)
+           (equal? session-cookie-name
+                   (client-cookie-name cookie)))
+         (request-cookies req)))
+
 (define (lookup-session req)
   (let/cc return
-    (define session-cookie
-      (findf (lambda (cookie)
-               (equal? session-cookie-name
-                       (client-cookie-name cookie)))
-             (request-cookies req)))
+    (define session-cookie (get-session-cookie req))
     (unless session-cookie
       (return #f))
     (hash-ref sessions
               (client-cookie-value session-cookie)
               #f)))
+
+(define (destroy-session req)
+  (let/cc return
+    (define session-cookie (get-session-cookie req))
+    (unless session-cookie
+      (return #f))
+    (hash-remove! sessions
+                  (client-cookie-value session-cookie))))
 
 (define (create-session #:user-id user-id)
   (let ([key (random-string)]
@@ -452,6 +472,9 @@
                (create-session #:user-id user-id)
                #:path "/"
                #:expires (date->rfc7231 (+years (today/utc) 1))))
+
+(define (clear-session-coookie)
+  (logout-id-cookie session-cookie-name #:path "/"))
 
 (define (authenticated? req)
   (not (eq? #f (lookup-session req))))
