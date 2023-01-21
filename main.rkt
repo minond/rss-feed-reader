@@ -131,6 +131,11 @@
       (where (= f.rss ,rss))
       (limit 1)))
 
+(define (find-user-by-email email)
+  (~> (from user #:as u)
+      (where (= email ,email))
+      (limit 1)))
+
 (define (:page content)
   (let ([css (port->string (open-input-file "styles.css"))])
     (:xml->string
@@ -154,11 +159,15 @@
              (:div 'class: "separator")
              (:main content)))))))
 
-(define (:login-form [email null] [password-mismatch null])
+(define (:login-form [email null] [show-error #f])
   (:form 'action: "/sessions/create"
          'method: "post"
+         (and show-error
+              (:div 'class: "error-message"
+                    "Invalid credentials, please try again."))
          (:input 'type: "email"
                  'name: "email"
+                 'value: email
                  'required: "true"
                  'autofocus: "true"
                  'autocapitalize: "false"
@@ -271,11 +280,26 @@
 
 
 (define (/sessions/new req)
-  (render (:login-form)))
+  (let ([email (get-parameter 'email req)]
+        [show-error (get-parameter 'invalid req #:default #f)])
+    (render (:login-form email show-error))))
+
+(define (/sessions/create req)
+  (let* ([email (get-parameter 'email req)]
+         [password (get-parameter 'password req)]
+         [user (lookup *conn* (find-user-by-email email))])
+    (if (check-password password user)
+        (redirect-to "/articles" permanently
+                     #:headers (list
+                                (cookie->header
+                                 (create-session-cookie #:user-id (user-id user)))))
+        (redirect-to
+         (format "/sessions/new?email=~a&invalid=true" email)
+         permanently))))
 
 (define (/users/new req)
-  (let* ([email (get-parameter 'email req)]
-         [password-mismatch (get-parameter 'password-mismatch req #:default #f)])
+  (let ([email (get-parameter 'email req)]
+        [password-mismatch (get-parameter 'password-mismatch req #:default #f)])
     (render (:user-form email password-mismatch))))
 
 (define (/users/create req)
@@ -330,6 +354,7 @@
 (define-values (app-dispatch app-url)
   (dispatch-rules
    [("sessions" "new") /sessions/new]
+   [("sessions" "create") #:method "post" /sessions/create]
    [("users" "new") /users/new]
    [("users" "create") #:method "post" /users/create]
    [("feeds" "new") /feeds/new]
@@ -435,3 +460,8 @@
   (let* ([bytes (string->bytes/utf-8 password)]
          [enc (scrypt bytes salt #:N (expt 2 14))])
     (values enc salt)))
+
+(define (check-password password user)
+  (let*-values ([(salt) (user-salt user)]
+                [(enc _) (make-password password #:salt salt)])
+    (equal? enc (user-encrypted-password user))))
