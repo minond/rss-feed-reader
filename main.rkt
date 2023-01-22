@@ -98,10 +98,11 @@
 (create-table! *conn* 'feed)
 (create-table! *conn* 'article)
 
-(define (count-articles #:user-id user-id)
+(define (count-articles #:user-id user-id #:archived [archived #f])
   (~> (from article #:as a)
       (select (count a.id))
-      (where (= a.user-id ,user-id))))
+      (where (and (= a.user-id ,user-id)
+                  (= a.archived ,archived)))))
 
 (define (select-articles #:user-id user-id
                          #:archived [archived #f]
@@ -366,10 +367,12 @@
   (if (not (authenticated? req))
       (redirect "/sessions/new")
       (let* ([current-page (or (string->number (get-parameter 'page req)) 1)]
-             [page-count (ceiling (/ (lookup *conn* (count-articles #:user-id (current-user-id))) *page-size*))]
+             [page-count (ceiling (/ (lookup *conn* (count-articles #:user-id (current-user-id)
+                                                                    #:archived #f)) *page-size*))]
              [offset (* (- current-page 1) *page-size*)]
              [articles (sequence->list
                         (in-entities *conn* (select-articles #:user-id (current-user-id)
+                                                             #:archived #f
                                                              #:offset offset)))])
         (render (:articles-list articles current-page page-count)))))
 
