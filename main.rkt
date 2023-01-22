@@ -308,13 +308,9 @@
                      #:headers (list
                                 (cookie->header
                                  (create-session-cookie #:user-id (user-id user)))))
-        (~> (current-session)
-            (update-session-cookie
-             _ #:flash (make-flash #:notice "Invalid credentials, please try again."))
-            (cookie->header _)
-            (list _)
-            (redirect-to (format "/sessions/new?email=~a" email) permanently
-                         #:headers _)))))
+        (begin
+          (write-flash #:notice "Invalid credentials, please try again.")
+          (redirect (format "/sessions/new?email=~a" email))))))
 
 (define (/sessions/destroy req)
   (destroy-session req)
@@ -332,13 +328,9 @@
          [password (get-parameter 'password req)]
          [password-confirm (get-parameter 'password-confirm req)])
     (if (not (equal? password password-confirm))
-        (~> (current-session)
-            (update-session-cookie
-             _ #:flash (make-flash #:notice "Your password and confirmation did not match, please try again."))
-            (cookie->header _)
-            (list _)
-            (redirect-to (format "/users/new?email=~a" email) permanently
-                         #:headers _))
+        (begin
+          (write-flash #:notice "Your password and confirmation did not match, please try again.")
+          (redirect (format "/users/new?email=~a" email)))
         (begin
           (let-values ([(encrypted-password salt) (make-password password)])
             (define user
@@ -354,31 +346,25 @@
 
 (define (/feeds/new req)
   (if (not (authenticated? req))
-      (redirect-to "/sessions/new")
+      (redirect "/sessions/new")
       (render (:feed-form))))
 
 (define (/feeds/create req)
   (if (not (authenticated? req))
-      (redirect-to "/sessions/new")
+      (redirect "/sessions/new")
       (let* ([rss (get-binding 'rss req)]
              [exists (lookup *conn* (find-feed-by-rss #:user-id (current-user-id)
                                                       #:rss rss))])
         (unless exists
           (schedule-feed-download (current-user-id) rss))
-        (define flash
-          (if exists
-              (make-flash #:notice "This feed already exists.")
-              (make-flash #:alert "Downloading feed data and articles...")))
-        (~> (current-session)
-            (update-session-cookie _ #:flash flash)
-            (cookie->header _)
-            (list _)
-            (redirect-to "/articles" permanently
-                         #:headers _)))))
+        (if exists
+            (write-flash #:notice "This feed already exists.")
+            (write-flash #:alert "Downloading feed data and articles."))
+        (redirect "/articles"))))
 
 (define (/articles req)
   (if (not (authenticated? req))
-      (redirect-to "/sessions/new")
+      (redirect "/sessions/new")
       (let* ([current-page (or (string->number (get-parameter 'page req)) 1)]
              [page-count (ceiling (/ (lookup *conn* (count-articles #:user-id (current-user-id))) *page-size*))]
              [offset (* (- current-page 1) *page-size*)]
@@ -389,7 +375,7 @@
 
 (define (/arcticles/show req id)
   (if (not (authenticated? req))
-      (redirect-to "/sessions/new")
+      (redirect "/sessions/new")
       (let* ([article (lookup *conn* (find-article-by-id #:id id
                                                          #:user-id (current-user-id)))]
              [feed (lookup *conn* (find-feed-by-id #:id (article-feed-id article)
@@ -398,10 +384,10 @@
 
 (define (/articles/archive req id)
   (if (not (authenticated? req))
-      (redirect-to "/sessions/new")
+      (redirect "/sessions/new")
       (begin
         (query *conn* (archive-article-by-id id))
-        (redirect-to "/articles" permanently))))
+        (redirect "/articles"))))
 
 (define-values (app-dispatch app-url)
   (dispatch-rules
@@ -433,19 +419,30 @@
     (parameterize ([current-request req]
                    [current-session session]
                    [current-user-id (and (session? session)
-                                         (session-user-id session))])
+                                         (session-user-id session))]
+                   [current-flash (and (session? session)
+                                       (session-flash session))])
       (apply handler (cons req args)))))
 
 (define (render content)
   (let ([request (current-request)]
         [session (current-session)]
-        [user-id (current-user-id)])
+        [user-id (current-user-id)]
+        [flash (current-flash)])
     (response/output
      (lambda (op)
        (parameterize ([current-request request]
                       [current-session session]
-                      [current-user-id user-id])
+                      [current-user-id user-id]
+                      [current-flash flash])
          (display (:page content) op))))))
+
+(define (redirect url)
+  (~> (current-session)
+      (update-session-cookie _ #:flash (current-flash))
+      (cookie->header _)
+      (list _)
+      (redirect-to url permanently #:headers _)))
 
 (define (schedule-feed-download user-id rss)
   (thread-send feed-download-thread (list user-id rss)))
@@ -500,6 +497,7 @@
 (define current-request (make-parameter #f))
 (define current-session (make-parameter #f))
 (define current-user-id (make-parameter #f))
+(define current-flash (make-parameter #f))
 
 (struct session (user-id flash))
 (define session-cookie-name "session")
@@ -560,25 +558,41 @@
 (define flash-cookie-name "flash")
 (struct flash (expires alert notice) #:prefab)
 
-(define (make-flash #:alert [alert #f]
+(define (make-flash #:from [from #f]
+                    #:alert [alert #f]
                     #:notice [notice #f])
   (flash (+seconds (now/utc) 1)
-         alert
-         notice))
+         (if alert
+             alert
+             (and (flash-active? from)
+                  (flash-alert from)))
+         (if notice
+             notice
+             (and (flash-active? from)
+                  (flash-notice from)))))
+
+(define (flash-active? flash)
+  (and (flash? flash)
+       (datetime>? (flash-expires flash) (now/utc))))
 
 (define read-flash
   (case-lambda
     [(field) (read-flash (current-request) field)]
     [(req field) (let* ([session (lookup-session req)]
                         [flash (and (session? session)
-                                    (session-flash session))]
-                        [valid (and (flash? flash)
-                                    (datetime>? (flash-expires flash) (now/utc)))])
-                   (if (not valid)
+                                    (session-flash session))])
+                   (if (not (flash-active? flash))
                        #f
                        (match field
                          ['alert (flash-alert flash)]
                          ['notice (flash-notice flash)])))]))
+
+(define write-flash
+  (make-keyword-procedure
+   (lambda (kws kw-args . args)
+     (define next-flash
+       (keyword-apply make-flash #:from (current-flash) kws kw-args args))
+     (current-flash next-flash))))
 
 (define (make-password password #:salt [salt (crypto-random-bytes 128)])
   (let* ([bytes (string->bytes/utf-8 password)]
