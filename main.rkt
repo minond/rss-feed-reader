@@ -387,6 +387,7 @@
       (redirect "/sessions/new")
       (begin
         (query *conn* (archive-article-by-id id))
+        (write-flash #:alert "Article archived.")
         (redirect "/articles"))))
 
 (define-values (app-dispatch app-url)
