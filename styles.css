@@ -42,12 +42,15 @@ header table {
   width: 100%;
 }
 
-header table td:first-child {
-  text-align: left;
+header .actions {
+  text-align: right;
 }
 
-header table td:nth-child(2) {
-  text-align: right;
+header .actions a {
+  font-size: 0.8em;
+  margin-left: 1.5em;
+  color: rgb(66, 66, 66);
+  font-weight: 100;
 }
 
 a {
@@ -151,15 +154,4 @@ article.row p {
 .page-skip {
   margin: 0 .5em;
   display: inline-block;
-}
-
-.add-feed {
-  font-family: monospace;
-  font-size: 2em;
-  font-weight: 100;
-  color: rgb(159, 159, 159);
-}
-
-.add-feed:hover {
-  text-decoration: none;
 }

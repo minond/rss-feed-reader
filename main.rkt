@@ -148,7 +148,7 @@
       (where (= email ,email))
       (limit 1)))
 
-(define (:page content #:flash [flash null])
+(define (:page content #:req [req #f])
   (let ([css (port->string (open-input-file "styles.css"))])
     (:xml->string
      (list (:doctype 'html)
@@ -165,12 +165,14 @@
                (:tr
                 (:td
                  (:a 'href: "/" "feeder"))
-                (:td
-                 (:a 'class: "add-feed"
-                     'href: "/feeds/new" "+")))))
+                (:td 'class: "actions"
+                     (if (authenticated? req)
+                         (list (:a 'href: "/feeds/new" "Add feed")
+                               (:a 'href: "/sessions/destroy" "Sign out"))
+                         null)))))
              (:div 'class: "separator")
-             (let ([alert (read-flash flash 'alert)]
-                   [notice (read-flash flash 'notice)])
+             (let ([alert (read-flash req 'alert)]
+                   [notice (read-flash req 'notice)])
                (list (and alert (:flash 'alert alert))
                      (and notice (:flash 'notice notice))))
              (:main content)))))))
@@ -294,11 +296,9 @@
 
 
 (define (/sessions/new req)
-  (let* ([session (lookup-session req)]
-         [flash (session-flash session)]
-         [email (get-parameter 'email req)])
+  (let* ([email (get-parameter 'email req)])
     (render (:login-form email)
-            #:flash flash)))
+            #:req req)))
 
 (define (/sessions/create req)
   (let* ([session (lookup-session req)]
@@ -326,11 +326,9 @@
                            (clear-session-coookie)))))
 
 (define (/users/new req)
-  (let* ([session (lookup-session req)]
-         [flash (session-flash session)]
-         [email (get-parameter 'email req)])
+  (let* ([email (get-parameter 'email req)])
     (render (:user-form email)
-            #:flash flash)))
+            #:req req)))
 
 (define (/users/create req)
   (let* ([session (lookup-session req)]
@@ -388,7 +386,6 @@
   (if (not (authenticated? req))
       (redirect-to "/sessions/new")
       (let* ([session (lookup-session req)]
-             [flash (session-flash session)]
              [user-id (session-user-id session)]
              [current-page (or (string->number (get-parameter 'page req)) 1)]
              [page-count (ceiling (/ (lookup *conn* (count-articles #:user-id user-id)) *page-size*))]
@@ -397,7 +394,7 @@
                         (in-entities *conn* (select-articles #:user-id user-id
                                                              #:offset offset)))])
         (render (:articles-list articles current-page page-count)
-                #:flash flash))))
+                #:req req))))
 
 (define (/arcticles/show req id)
   (if (not (authenticated? req))
@@ -442,10 +439,10 @@
                  #:port 8000
                  #:servlet-regexp #rx""))
 
-(define (render content #:flash [flash null])
+(define (render content #:req [req null])
   (response/output
    (lambda (op)
-     (display (:page content #:flash flash) op))))
+     (display (:page content #:req req) op))))
 
 (define (schedule-feed-download user-id rss)
   (thread-send feed-download-thread (list user-id rss)))
@@ -497,9 +494,9 @@
           (random-item charset))
         (make-list len 0))))
 
+(struct session (user-id flash))
 (define session-cookie-name "session")
 (define sessions (make-hash))
-(struct session (user-id flash))
 
 (define (get-session-cookie req)
   (findf (lambda (cookie)
@@ -509,6 +506,8 @@
 
 (define (lookup-session req)
   (let/cc return
+    (unless req
+      (return (session #f #f)))
     (define session-cookie (get-session-cookie req))
     (unless session-cookie
       (return (session #f #f)))
@@ -558,12 +557,16 @@
          alert
          notice))
 
-(define (read-flash flash field)
-  (if (or (not flash) (null? flash) (datetime<=? (flash-expires flash) (now/utc)))
-      #f
-      (match field
-        ['alert (flash-alert flash)]
-        ['notice (flash-notice flash)])))
+(define (read-flash req field)
+  (let* ([session (lookup-session req)]
+         [flash (and req (session-flash session))]
+         [valid (and (flash? flash)
+                     (datetime<=? (flash-expires flash) (now/utc)))])
+    (if (not valid)
+        #f
+        (match field
+          ['alert (flash-alert flash)]
+          ['notice (flash-notice flash)]))))
 
 (define (make-password password #:salt [salt (crypto-random-bytes 128)])
   (let* ([bytes (string->bytes/utf-8 password)]
