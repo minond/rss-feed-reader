@@ -506,7 +506,7 @@
 
 (define (lookup-session req)
   (let/cc return
-    (unless req
+    (unless (request? req)
       (return (session #f #f)))
     (define session-cookie (get-session-cookie req))
     (unless session-cookie
