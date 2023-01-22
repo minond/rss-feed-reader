@@ -148,7 +148,7 @@
       (where (= email ,email))
       (limit 1)))
 
-(define (:page content #:req [req #f])
+(define (:page content)
   (let ([css (port->string (open-input-file "styles.css"))])
     (:xml->string
      (list (:doctype 'html)
@@ -166,13 +166,13 @@
                 (:td
                  (:a 'href: "/" "feeder"))
                 (:td 'class: "actions"
-                     (if (authenticated? req)
+                     (if (authenticated?)
                          (list (:a 'href: "/feeds/new" "Add feed")
                                (:a 'href: "/sessions/destroy" "Sign out"))
                          null)))))
              (:div 'class: "separator")
-             (let ([alert (read-flash req 'alert)]
-                   [notice (read-flash req 'notice)])
+             (let ([alert (read-flash 'alert)]
+                   [notice (read-flash 'notice)])
                (list (and alert (:flash 'alert alert))
                      (and notice (:flash 'notice notice))))
              (:main content)))))))
@@ -297,12 +297,10 @@
 
 (define (/sessions/new req)
   (let* ([email (get-parameter 'email req)])
-    (render (:login-form email)
-            #:req req)))
+    (render (:login-form email))))
 
 (define (/sessions/create req)
-  (let* ([session (lookup-session req)]
-         [email (get-parameter 'email req)]
+  (let* ([email (get-parameter 'email req)]
          [password (get-parameter 'password req)]
          [user (lookup *conn* (find-user-by-email email))])
     (if (and user (check-password password user))
@@ -310,7 +308,7 @@
                      #:headers (list
                                 (cookie->header
                                  (create-session-cookie #:user-id (user-id user)))))
-        (~> session
+        (~> (current-session)
             (update-session-cookie
              _ #:flash (make-flash #:notice "Invalid credentials, please try again."))
             (cookie->header _)
@@ -327,16 +325,14 @@
 
 (define (/users/new req)
   (let* ([email (get-parameter 'email req)])
-    (render (:user-form email)
-            #:req req)))
+    (render (:user-form email))))
 
 (define (/users/create req)
-  (let* ([session (lookup-session req)]
-         [email (get-parameter 'email req)]
+  (let* ([email (get-parameter 'email req)]
          [password (get-parameter 'password req)]
          [password-confirm (get-parameter 'password-confirm req)])
     (if (not (equal? password password-confirm))
-        (~> session
+        (~> (current-session)
             (update-session-cookie
              _ #:flash (make-flash #:notice "Your password and confirmation did not match, please try again."))
             (cookie->header _)
@@ -364,18 +360,16 @@
 (define (/feeds/create req)
   (if (not (authenticated? req))
       (redirect-to "/sessions/new")
-      (let* ([session (lookup-session req)]
-             [user-id (session-user-id session)]
-             [rss (get-binding 'rss req)]
-             [exists (lookup *conn* (find-feed-by-rss #:user-id user-id
+      (let* ([rss (get-binding 'rss req)]
+             [exists (lookup *conn* (find-feed-by-rss #:user-id (current-user-id)
                                                       #:rss rss))])
         (unless exists
-          (schedule-feed-download user-id rss))
+          (schedule-feed-download (current-user-id) rss))
         (define flash
           (if exists
               (make-flash #:notice "This feed already exists.")
               (make-flash #:alert "Downloading feed data and articles...")))
-        (~> session
+        (~> (current-session)
             (update-session-cookie _ #:flash flash)
             (cookie->header _)
             (list _)
@@ -385,26 +379,21 @@
 (define (/articles req)
   (if (not (authenticated? req))
       (redirect-to "/sessions/new")
-      (let* ([session (lookup-session req)]
-             [user-id (session-user-id session)]
-             [current-page (or (string->number (get-parameter 'page req)) 1)]
-             [page-count (ceiling (/ (lookup *conn* (count-articles #:user-id user-id)) *page-size*))]
+      (let* ([current-page (or (string->number (get-parameter 'page req)) 1)]
+             [page-count (ceiling (/ (lookup *conn* (count-articles #:user-id (current-user-id))) *page-size*))]
              [offset (* (- current-page 1) *page-size*)]
              [articles (sequence->list
-                        (in-entities *conn* (select-articles #:user-id user-id
+                        (in-entities *conn* (select-articles #:user-id (current-user-id)
                                                              #:offset offset)))])
-        (render (:articles-list articles current-page page-count)
-                #:req req))))
+        (render (:articles-list articles current-page page-count)))))
 
 (define (/arcticles/show req id)
   (if (not (authenticated? req))
       (redirect-to "/sessions/new")
-      (let* ([session (lookup-session req)]
-             [user-id (session-user-id session)]
-             [article (lookup *conn* (find-article-by-id #:id id
-                                                         #:user-id user-id))]
+      (let* ([article (lookup *conn* (find-article-by-id #:id id
+                                                         #:user-id (current-user-id)))]
              [feed (lookup *conn* (find-feed-by-id #:id (article-feed-id article)
-                                                   #:user-id user-id))])
+                                                   #:user-id (current-user-id)))])
         (render (:article-full feed article)))))
 
 (define (/articles/archive req id)
@@ -416,18 +405,18 @@
 
 (define-values (app-dispatch app-url)
   (dispatch-rules
-   [("sessions" "new") /sessions/new]
-   [("sessions" "create") #:method "post" /sessions/create]
-   [("sessions" "destroy") #:method "delete"  /sessions/destroy]
-   [("sessions" "destroy") /sessions/destroy]
-   [("users" "new") /users/new]
-   [("users" "create") #:method "post" /users/create]
-   [("feeds" "new") /feeds/new]
-   [("feeds" "create") #:method "post" /feeds/create]
-   [("articles") /articles]
-   [("articles" (integer-arg)) /arcticles/show]
-   [("articles" (integer-arg) "archive") /articles/archive]
-   [else /articles]))
+   [("sessions" "new") (route /sessions/new)]
+   [("sessions" "create") #:method "post" (route /sessions/create)]
+   [("sessions" "destroy") #:method "delete"  (route /sessions/destroy)]
+   [("sessions" "destroy") (route /sessions/destroy)]
+   [("users" "new") (route /users/new)]
+   [("users" "create") #:method "post" (route /users/create)]
+   [("feeds" "new") (route /feeds/new)]
+   [("feeds" "create") #:method "post" (route /feeds/create)]
+   [("articles") (route /articles)]
+   [("articles" (integer-arg)) (route /arcticles/show)]
+   [("articles" (integer-arg) "archive") (route /articles/archive)]
+   [else (route /articles)]))
 
 (define (server req)
   (app-dispatch req))
@@ -439,10 +428,24 @@
                  #:port 8000
                  #:servlet-regexp #rx""))
 
-(define (render content #:req [req null])
-  (response/output
-   (lambda (op)
-     (display (:page content #:req req) op))))
+(define ((route handler) req . args)
+  (let ([session (lookup-session req)])
+    (parameterize ([current-request req]
+                   [current-session session]
+                   [current-user-id (and (session? session)
+                                         (session-user-id session))])
+      (apply handler (cons req args)))))
+
+(define (render content)
+  (let ([request (current-request)]
+        [session (current-session)]
+        [user-id (current-user-id)])
+    (response/output
+     (lambda (op)
+       (parameterize ([current-request request]
+                      [current-session session]
+                      [current-user-id user-id])
+         (display (:page content) op))))))
 
 (define (schedule-feed-download user-id rss)
   (thread-send feed-download-thread (list user-id rss)))
@@ -494,6 +497,10 @@
           (random-item charset))
         (make-list len 0))))
 
+(define current-request (make-parameter #f))
+(define current-session (make-parameter #f))
+(define current-user-id (make-parameter #f))
+
 (struct session (user-id flash))
 (define session-cookie-name "session")
 (define sessions (make-hash))
@@ -544,9 +551,11 @@
 (define (clear-session-coookie)
   (logout-id-cookie session-cookie-name #:path "/"))
 
-(define (authenticated? req)
-  (let ([session (lookup-session req)])
-    (and session (session-user-id session))))
+(define authenticated?
+  (case-lambda
+    [() (authenticated? (current-request))]
+    [(req) (let ([session (lookup-session req)])
+             (and session (session-user-id session)))]))
 
 (define flash-cookie-name "flash")
 (struct flash (expires alert notice) #:prefab)
@@ -557,16 +566,19 @@
          alert
          notice))
 
-(define (read-flash req field)
-  (let* ([session (lookup-session req)]
-         [flash (and req (session-flash session))]
-         [valid (and (flash? flash)
-                     (datetime<=? (flash-expires flash) (now/utc)))])
-    (if (not valid)
-        #f
-        (match field
-          ['alert (flash-alert flash)]
-          ['notice (flash-notice flash)]))))
+(define read-flash
+  (case-lambda
+    [(field) (read-flash (current-request) field)]
+    [(req field) (let* ([session (lookup-session req)]
+                        [flash (and (session? session)
+                                    (session-flash session))]
+                        [valid (and (flash? flash)
+                                    (datetime>? (flash-expires flash) (now/utc)))])
+                   (if (not valid)
+                       #f
+                       (match field
+                         ['alert (flash-alert flash)]
+                         ['notice (flash-notice flash)])))]))
 
 (define (make-password password #:salt [salt (crypto-random-bytes 128)])
   (let* ([bytes (string->bytes/utf-8 password)]
