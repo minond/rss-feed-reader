@@ -9,7 +9,9 @@
 (provide current-request current-session current-user-id
          session? session-user-id session-flash lookup-session
          update-session-cookie create-session-cookie clear-session-coookie
-         authenticated? destroy-session)
+         authenticated? destroy-session new-session-route)
+
+(define new-session-route (make-parameter "/sessions/new"))
 
 (define current-request (make-parameter #f))
 (define current-session (make-parameter #f))

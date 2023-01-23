@@ -12,19 +12,15 @@
          /feeds/create)
 
 (define (/feeds/new req)
-  (if (not (authenticated? req))
-      (redirect "/sessions/new")
-      (render :page (:feed-form))))
+  (render :page (:feed-form)))
 
 (define (/feeds/create req)
-  (if (not (authenticated? req))
-      (redirect "/sessions/new")
-      (let* ([rss (get-binding 'rss req)]
-             [exists (lookup (current-database-connection)
-                             (find-feed-by-rss #:user-id (current-user-id)
-                                               #:rss rss))])
-        (unless exists
-          (schedule-feed-download (current-user-id) rss))
-        (with-flash #:alert (and (not exists) "Downloading feed data and articles.")
-          #:notice (and exists "This feed already exists.")
-          (redirect "/articles")))))
+  (let* ([rss (get-binding 'rss req)]
+         [exists (lookup (current-database-connection)
+                         (find-feed-by-rss #:user-id (current-user-id)
+                                           #:rss rss))])
+    (unless exists
+      (schedule-feed-download (current-user-id) rss))
+    (with-flash #:alert (and (not exists) "Downloading feed data and articles.")
+      #:notice (and exists "This feed already exists.")
+      (redirect "/articles"))))

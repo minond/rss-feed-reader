@@ -15,9 +15,9 @@
    [("sessions" "destroy") (route /sessions/destroy)]
    [("users" "new") (route /users/new)]
    [("users" "create") #:method "post" (route /users/create)]
-   [("feeds" "new") (route /feeds/new)]
-   [("feeds" "create") #:method "post" (route /feeds/create)]
-   [("articles") (route /articles)]
-   [("articles" (integer-arg)) (route /arcticles/show)]
-   [("articles" (integer-arg) "archive") (route /articles/archive)]
-   [else (route /articles)]))
+   [("feeds" "new") (authenticated-route /feeds/new)]
+   [("feeds" "create") #:method "post" (authenticated-route /feeds/create)]
+   [("articles") (authenticated-route /articles)]
+   [("articles" (integer-arg)) (authenticated-route /arcticles/show)]
+   [("articles" (integer-arg) "archive") (authenticated-route /articles/archive)]
+   [else (authenticated-route /articles)]))

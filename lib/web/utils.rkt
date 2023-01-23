@@ -8,6 +8,7 @@
 
 (provide get-parameter
          get-binding
+         authenticated-route
          route
          render
          redirect)
@@ -19,15 +20,27 @@
   (cdr (find-pair key (request-bindings req)
                   #:default (cons key default))))
 
-(define ((route handler) req . args)
+(define ((authenticated-route handler) req . args)
   (let ([session (lookup-session req)])
-    (parameterize ([current-request req]
-                   [current-session session]
-                   [current-user-id (and (session? session)
-                                         (session-user-id session))]
-                   [current-flash (and (session? session)
-                                       (session-flash session))])
-      (apply handler (cons req args)))))
+    (if (not (authenticated? req))
+        (redirect-to (new-session-route) permanently)
+        (apply-handler handler session req args))))
+
+(define ((route handler) req . args)
+  (apply-handler handler (lookup-session req) req args))
+
+(define apply-handler
+  (case-lambda
+    [(handler req args)
+     (apply-handler handler (lookup-session req) req args)]
+    [(handler session req args)
+     (parameterize ([current-request req]
+                    [current-session session]
+                    [current-user-id (and (session? session)
+                                          (session-user-id session))]
+                    [current-flash (and (session? session)
+                                        (session-flash session))])
+       (apply handler (cons req args)))]))
 
 (define (render :page content)
   (let ([request (current-request)]
