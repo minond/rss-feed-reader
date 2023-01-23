@@ -17,6 +17,8 @@
          (prefix-in : scribble/html/extra)
          (prefix-in rss: "rss.rkt"))
 
+(require (for-syntax syntax/parse))
+
 (provide start)
 
 (crypto-factories libcrypto-factory)
@@ -309,8 +311,7 @@
                      #:headers (list
                                 (cookie->header
                                  (create-session-cookie #:user-id (user-id user)))))
-        (begin
-          (write-flash #:notice "Invalid credentials, please try again.")
+        (with-flash #:notice "Invalid credentials, please try again."
           (redirect (format "/sessions/new?email=~a" email))))))
 
 (define (/sessions/destroy req)
@@ -329,21 +330,19 @@
          [password (get-parameter 'password req)]
          [password-confirm (get-parameter 'password-confirm req)])
     (if (not (equal? password password-confirm))
-        (begin
-          (write-flash #:notice "Your password and confirmation did not match, please try again.")
+        (with-flash #:notice "Your password and confirmation did not match, please try again."
           (redirect (format "/users/new?email=~a" email)))
-        (begin
-          (let-values ([(encrypted-password salt) (make-password password)])
-            (define user
-              (insert-one! *conn*
-                           (make-user #:email email
-                                      #:salt salt
-                                      #:encrypted-password encrypted-password)))
-            (define session-cookie
-              (create-session-cookie #:user-id (user-id user)))
-            (redirect-to "/feeds/new" permanently
-                         #:headers (list
-                                    (cookie->header session-cookie))))))))
+        (let-values ([(encrypted-password salt) (make-password password)])
+          (define user
+            (insert-one! *conn*
+                         (make-user #:email email
+                                    #:salt salt
+                                    #:encrypted-password encrypted-password)))
+          (define session-cookie
+            (create-session-cookie #:user-id (user-id user)))
+          (redirect-to "/feeds/new" permanently
+                       #:headers (list
+                                  (cookie->header session-cookie)))))))
 
 (define (/feeds/new req)
   (if (not (authenticated? req))
@@ -358,10 +357,9 @@
                                                       #:rss rss))])
         (unless exists
           (schedule-feed-download (current-user-id) rss))
-        (if exists
-            (write-flash #:notice "This feed already exists.")
-            (write-flash #:alert "Downloading feed data and articles."))
-        (redirect "/articles"))))
+        (with-flash #:alert (and (not exists) "Downloading feed data and articles.")
+          #:notice (and exists "This feed already exists.")
+          (redirect "/articles")))))
 
 (define (/articles req)
   (if (not (authenticated? req))
@@ -390,8 +388,8 @@
       (redirect "/sessions/new")
       (begin
         (query *conn* (archive-article-by-id id))
-        (write-flash #:alert "Article archived.")
-        (redirect "/articles"))))
+        (with-flash #:alert "Article archived."
+          (redirect "/articles")))))
 
 (define-values (app-dispatch app-url)
   (dispatch-rules
@@ -591,12 +589,17 @@
                          ['alert (flash-alert flash)]
                          ['notice (flash-notice flash)])))]))
 
-(define write-flash
-  (make-keyword-procedure
-   (lambda (kws kw-args . args)
-     (define next-flash
-       (keyword-apply make-flash #:from (current-flash) kws kw-args args))
-     (current-flash next-flash))))
+(define-syntax (with-flash stx)
+  (syntax-parse stx
+    [(with-flash (~or (~seq #:alert alert:expr)
+                      (~seq))
+       (~or (~seq #:notice notice:expr)
+            (~seq))
+       e ...)
+     #'(parameterize ([current-flash (make-flash #:from (current-flash)
+                                                 #:alert (~? alert #f)
+                                                 #:notice (~? notice #f))])
+         e ...)]))
 
 (define (make-password password #:salt [salt (crypto-random-bytes 128)])
   (let* ([bytes (string->bytes/utf-8 password)]
