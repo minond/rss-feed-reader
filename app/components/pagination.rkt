@@ -18,7 +18,7 @@
               (map (lambda (num)
                      (match num
                        ['skip (:span 'class: "page-skip" "…")]
-                       [else (:a 'class: (if (eq? num current-page) "current-page page-link" "page-link")
+                       [else (:a 'class: (if (eq? num current-page) "page-link current" "page-link")
                                  'href: (format "?page=~a" num) num)])) numbers)
               (and (< current-page page-count)
                    (:a 'class: "page-link"
