@@ -1,5 +1,5 @@
 #lang racket
 
-(require "app/main.rkt")
+(require "app/servlet.rkt")
 
 (start)
