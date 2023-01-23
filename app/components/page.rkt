@@ -41,12 +41,25 @@
                     (and notice (:flash 'notice notice))))
             (:main content)))))))
 
-(define light-text (css-expr (apply rgb 83 83 83)))
+(define font-styles-url
+  "https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap")
+
+(define border-color-light (css-expr (apply rgb 187 187 187)))
+(define border-color-normal (css-expr (apply rgb 138 138 138)))
+(define failure-color-light (css-expr (apply rgb 255 240 240)))
+(define failure-color-normal (css-expr (apply rgb 233 170 170)))
+(define separator-color-light (css-expr (apply rgb 235 235 235)))
+(define separator-color-normal (css-expr (apply rgb 223 223 223)))
+(define success-color-light (css-expr (apply rgb 245 255 245)))
+(define success-color-normal (css-expr (apply rgb 163 223 163)))
+(define text-color-light (css-expr (apply rgb 83 83 83)))
+
+(define content-max-width (css-expr 50em))
 
 (define css
   (css-expr->css
    (css-expr
-    [@import "https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap"]
+    [@import ,font-styles-url]
 
     [body #:cursor default
           #:font-family "Libre Baskerville"
@@ -62,11 +75,11 @@
             [.actions #:text-align right
                       [a #:font-size 0.8em
                          #:margin-left 1.5em
-                         #:color (apply rgb 66 66 66)
+                         #:color ,@text-color-light
                          #:font-weight 100]]]
     [header main
             #:margin (0 auto)
-            #:max-width 50em]
+            #:max-width ,@content-max-width]
     [a #:color initial
        #:text-decoration none]
     [a:hover #:text-decoration underline]
@@ -82,10 +95,10 @@
            (attribute input (= type "password"))
            #:border-width (1px 1px 1.5px 1px)
            #:border-style solid
-           #:border-color ((apply rgb 187 187 187)
-                           (apply rgb 187 187 187)
-                           (apply rgb 138 138 138)
-                           (apply rgb 187 187 187))
+           #:border-color (,@border-color-light
+                           ,@border-color-light
+                           ,@border-color-normal
+                           ,@border-color-light)
            #:padding 0.5em
            #:width 100%
            #:font-size 1.1em
@@ -99,25 +112,24 @@
           [a #:font-size 0.8em]]
 
     [.flash-text #:margin (0 auto)
-                 #:max-width 50em
+                 #:max-width ,@content-max-width
                  #:padding .75em]
-    [.flash.alert #:border-bottom (1px solid (apply rgb 163 223 163))
-                  #:background-color (apply rgb 245 255 245)]
-    [.flash.notice #:border-bottom (1px solid (apply rgb 233 170 170))
-                   #:background-color (apply rgb 255 240 240)]
+    [.flash.alert #:border-bottom (1px solid ,@success-color-normal)
+                  #:background-color ,@success-color-light]
+    [.flash.notice #:border-bottom (1px solid ,@failure-color-normal)
+                   #:background-color ,@failure-color-light]
 
-    [.separator #:border-bottom (1px solid (apply rgb 223 223 223))]
+    [.separator #:border-bottom (1px solid ,@separator-color-normal)]
     [.pl1 #:padding-left 1em]
 
     [article
      [time .action
            #:font-size 0.75em
-           #:color ,@light-text]]
-    [article.row #:min-height 9em
-                 #:border-bottom (1px solid (apply rgb 235 235 235))
+           #:color ,@text-color-light]]
+    [article.row #:border-bottom (1px solid ,@separator-color-light)
                  #:padding (2em 0)
                  [p #:font-size 0.9em
-                    #:color ,@light-text]]
+                    #:color ,@text-color-light]]
     [article.row
      [.showonhover #:opacity 0
                    #:transition (opacity .2s)]]
@@ -128,12 +140,10 @@
                  #:text-align center
                  #:overflow scroll]
     [.page-link #:margin (0 .75em)
-                #:color (apply rgb 71 71 71)
+                #:color ,@text-color-light
                 #:display inline-block
                 #:min-width 20px]
     [.page-link.current #:color black
                         #:font-weight bold]
     [.page-skip #:margin (0 .5em)
-                #:display inline-block]
-
-    [.empty #:color red])))
+                #:display inline-block])))
