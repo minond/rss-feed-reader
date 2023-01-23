@@ -1,63 +1,24 @@
 #lang racket
 
-(require racket/random
-         crypto
-         crypto/libcrypto
-         db
+(require db
          threading
          deta
          deta/reflect
          gregor
          web-server/servlet
          web-server/servlet-env
-         web-server/http/cookie
-         web-server/http/id-cookie
          (prefix-in : scribble/html/xml)
          (prefix-in : scribble/html/html)
          (prefix-in : scribble/html/extra)
-         (prefix-in rss: "rss.rkt"))
-
-(require (for-syntax syntax/parse))
+         (prefix-in rss: "lib/rss.rkt")
+         "lib/pair.rkt"
+         "lib/string.rkt"
+         "lib/crypto.rkt"
+         "lib/web/utils.rkt"
+         "lib/web/session.rkt"
+         "lib/web/flash.rkt")
 
 (provide start)
-
-(crypto-factories libcrypto-factory)
-
-(define (date->rfc7231 date)
-  (~t date "E, d MMM yyyy HH:mm:ss"))
-
-(define (string-chop str maxlen #:end [end ""])
-  (if (<= (string-length str) maxlen)
-      str
-      (string-append (string-trim (substring str 0 maxlen)) end)))
-
-(define (strip-xml str)
-  (~> str
-      (string-replace _ "<![CDATA[" "" #:all? #t)
-      (string-replace _ "]]>" "" #:all? #t)))
-
-(define (strip-html str)
-  (~> str
-      (strip-xml _)
-      (regexp-replace* #rx"(<([^>]+)>)" _ "")))
-
-(define (reduce-by-pair f xs [id '()])
-  (if (< (length xs) 2)
-      (append id xs)
-      (reduce-by-pair f (cdr xs) (f id (car xs) (cadr xs)))))
-
-(define (find-pair key xs #:default [default null])
-  (or (findf (lambda (x)
-               (eq? key (car x))) xs)
-      default))
-
-(define (get-parameter key req #:default [default ""])
-  (get-binding key req #:default default))
-
-(define (get-binding key req #:default [default null])
-  (cdr (find-pair key (request-bindings req)
-                  #:default (cons key default))))
-
 
 (define *page-size* 10)
 
@@ -300,13 +261,15 @@
 
 (define (/sessions/new req)
   (let* ([email (get-parameter 'email req)])
-    (render (:login-form email))))
+    (render :page (:login-form email))))
 
 (define (/sessions/create req)
   (let* ([email (get-parameter 'email req)]
          [password (get-parameter 'password req)]
          [user (lookup *conn* (find-user-by-email email))])
-    (if (and user (check-password password user))
+    (if (and user (check-password #:unencrypted password
+                                  #:encrypted (user-encrypted-password user)
+                                  #:salt (user-salt user)))
         (redirect-to "/articles" permanently
                      #:headers (list
                                 (cookie->header
@@ -323,7 +286,7 @@
 
 (define (/users/new req)
   (let* ([email (get-parameter 'email req)])
-    (render (:user-form email))))
+    (render :page (:user-form email))))
 
 (define (/users/create req)
   (let* ([email (get-parameter 'email req)]
@@ -347,7 +310,7 @@
 (define (/feeds/new req)
   (if (not (authenticated? req))
       (redirect "/sessions/new")
-      (render (:feed-form))))
+      (render :page (:feed-form))))
 
 (define (/feeds/create req)
   (if (not (authenticated? req))
@@ -372,7 +335,7 @@
                         (in-entities *conn* (select-articles #:user-id (current-user-id)
                                                              #:archived #f
                                                              #:offset offset)))])
-        (render (:articles-list articles current-page page-count)))))
+        (render :page (:articles-list articles current-page page-count)))))
 
 (define (/arcticles/show req id)
   (if (not (authenticated? req))
@@ -381,7 +344,7 @@
                                                          #:user-id (current-user-id)))]
              [feed (lookup *conn* (find-feed-by-id #:id (article-feed-id article)
                                                    #:user-id (current-user-id)))])
-        (render (:article-full feed article)))))
+        (render :page (:article-full feed article)))))
 
 (define (/articles/archive req id)
   (if (not (authenticated? req))
@@ -406,45 +369,12 @@
    [("articles" (integer-arg) "archive") (route /articles/archive)]
    [else (route /articles)]))
 
-(define (server req)
-  (app-dispatch req))
-
 (define (start)
-  (serve/servlet server
+  (serve/servlet app-dispatch
                  #:launch-browser? #f
                  #:servlet-path "/"
                  #:port 8000
                  #:servlet-regexp #rx""))
-
-(define ((route handler) req . args)
-  (let ([session (lookup-session req)])
-    (parameterize ([current-request req]
-                   [current-session session]
-                   [current-user-id (and (session? session)
-                                         (session-user-id session))]
-                   [current-flash (and (session? session)
-                                       (session-flash session))])
-      (apply handler (cons req args)))))
-
-(define (render content)
-  (let ([request (current-request)]
-        [session (current-session)]
-        [user-id (current-user-id)]
-        [flash (current-flash)])
-    (response/output
-     (lambda (op)
-       (parameterize ([current-request request]
-                      [current-session session]
-                      [current-user-id user-id]
-                      [current-flash flash])
-         (display (:page content) op))))))
-
-(define (redirect url)
-  (~> (current-session)
-      (update-session-cookie _ #:flash (current-flash))
-      (cookie->header _)
-      (list _)
-      (redirect-to url permanently #:headers _)))
 
 (define (schedule-feed-download user-id rss)
   (thread-send feed-download-thread (list user-id rss)))
@@ -480,133 +410,3 @@
                                              #:content (rss:article-content article)))))
        (printf "done processing ~a\n" rss)
        (loop)))))
-
-(define charset
-  (map integer->char
-       (append (inclusive-range 48 57)
-               (inclusive-range 65 90)
-               (inclusive-range 97 122))))
-
-(define (random-item xs)
-  (sequence-ref xs (random (sequence-length xs))))
-
-(define (random-string [len 32])
-  (list->string
-   (map (lambda (x)
-          (random-item charset))
-        (make-list len 0))))
-
-(define current-request (make-parameter #f))
-(define current-session (make-parameter #f))
-(define current-user-id (make-parameter #f))
-(define current-flash (make-parameter #f))
-
-(struct session (user-id flash))
-(define session-cookie-name "session")
-(define sessions (make-hash))
-
-(define (get-session-cookie req)
-  (findf (lambda (cookie)
-           (equal? session-cookie-name
-                   (client-cookie-name cookie)))
-         (request-cookies req)))
-
-(define (lookup-session req)
-  (let/cc return
-    (unless (request? req)
-      (return (session #f #f)))
-    (define session-cookie (get-session-cookie req))
-    (unless session-cookie
-      (return (session #f #f)))
-    (hash-ref sessions
-              (client-cookie-value session-cookie)
-              (session #f #f))))
-
-(define (destroy-session req)
-  (let/cc return
-    (define session-cookie (get-session-cookie req))
-    (unless session-cookie
-      (return #f))
-    (hash-remove! sessions
-                  (client-cookie-value session-cookie))))
-
-(define (create-session user-id flash)
-  (let ([key (random-string)]
-        [data (session user-id flash)])
-    (hash-set! sessions key data)
-    key))
-
-(define (create-session-cookie #:user-id user-id #:flash [flash #f])
-  (make-cookie session-cookie-name
-               (create-session user-id flash)
-               #:path "/"
-               #:expires (date->rfc7231 (+years (now/utc) 1))))
-
-(define (update-session-cookie session #:user-id [user-id #f] #:flash [flash #f])
-  (let ([orig-user-id (session-user-id session)]
-        [orig-flash (session-flash session)])
-    (create-session-cookie #:user-id (or user-id orig-user-id)
-                           #:flash (or flash orig-flash))))
-
-(define (clear-session-coookie)
-  (logout-id-cookie session-cookie-name #:path "/"))
-
-(define authenticated?
-  (case-lambda
-    [() (authenticated? (current-request))]
-    [(req) (let ([session (lookup-session req)])
-             (and session (session-user-id session)))]))
-
-(define flash-cookie-name "flash")
-(struct flash (expires alert notice) #:prefab)
-
-(define (make-flash #:from [from #f]
-                    #:alert [alert #f]
-                    #:notice [notice #f])
-  (flash (+seconds (now/utc) 1)
-         (if alert
-             alert
-             (and (flash-active? from)
-                  (flash-alert from)))
-         (if notice
-             notice
-             (and (flash-active? from)
-                  (flash-notice from)))))
-
-(define (flash-active? flash)
-  (and (flash? flash)
-       (datetime>? (flash-expires flash) (now/utc))))
-
-(define read-flash
-  (case-lambda
-    [(field) (read-flash (current-request) field)]
-    [(req field) (let* ([session (lookup-session req)]
-                        [flash (and (session? session)
-                                    (session-flash session))])
-                   (if (not (flash-active? flash))
-                       #f
-                       (match field
-                         ['alert (flash-alert flash)]
-                         ['notice (flash-notice flash)])))]))
-
-(define-syntax (with-flash stx)
-  (syntax-parse stx
-    [(with-flash (~or (~seq #:alert alert:expr)
-                      (~seq))
-       (~or (~seq #:notice notice:expr)
-            (~seq))
-       e ...)
-     #'(parameterize ([current-flash (make-flash #:from (current-flash)
-                                                 #:alert (~? alert #f)
-                                                 #:notice (~? notice #f))])
-         e ...)]))
-
-(define (make-password password #:salt [salt (crypto-random-bytes 128)])
-  (let* ([bytes (string->bytes/utf-8 password)]
-         [enc (scrypt bytes salt #:N (expt 2 14))])
-    (values enc salt)))
-
-(define (check-password password user)
-  (let*-values ([(salt) (user-salt user)]
-                [(enc _) (make-password password #:salt salt)])
-    (equal? enc (user-encrypted-password user))))
