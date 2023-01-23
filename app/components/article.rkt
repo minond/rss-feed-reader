@@ -16,7 +16,8 @@
   (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
         [humandate (~t (article-date article) "MMMM d, yyyy")])
     (:article
-     (:h1 (:a 'href: (article-link article) (article-title article)))
+     (:h1 (:a 'href: (article-link article)
+              (article-title article)))
      (:h4 (feed-title feed))
      (:time 'datetime: datetime humandate)
      (:p (:literal (strip-xml (article-content article)))))))
@@ -34,9 +35,16 @@
               (:h4
                (:a 'href: (format "/articles/~a" (article-id article))
                    (article-title article)))
-              #;(:h5 (feed-title feed))
+              ; (:h5 (feed-title feed))
               (:p (string-chop (strip-html (article-content article)) 300 #:end "…"))
               (:time 'datetime: datetime humandate)
-              (:a 'class: "pl1 action showonhover" 'href: (article-link article) 'target: "_blank" "read")
-              #;(:a 'class: "pl1 action showonhover" 'href: "#save" "save")
-              (:a 'class: "pl1 action showonhover" 'href: (format "/articles/~a/archive" (article-id article)) "archive"))))
+              (:a 'class: "pl1 action showonhover"
+                  'href: (article-link article)
+                  'target: "_blank"
+                  "read")
+              ; (:a 'class: "pl1 action showonhover"
+              ;     'href: "#save"
+              ;     "save")
+              (:a 'class: "pl1 action showonhover"
+                  'href: (format "/articles/~a/archive" (article-id article))
+                  "archive"))))
