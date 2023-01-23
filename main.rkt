@@ -3,7 +3,6 @@
 (require db
          threading
          deta
-         deta/reflect
          gregor
          web-server/servlet
          web-server/servlet-env
@@ -16,7 +15,8 @@
          "lib/crypto.rkt"
          "lib/web/utils.rkt"
          "lib/web/session.rkt"
-         "lib/web/flash.rkt")
+         "lib/web/flash.rkt"
+         "app/models.rkt")
 
 (provide start)
 
@@ -30,87 +30,9 @@
 (define *conn*
   (connection-pool-lease *pool*))
 
-; For interactive mode
-(schema-registry-allow-conflicts? #t)
-
-(define-schema user
-  ([id id/f #:primary-key #:auto-increment]
-   [email string/f #:unique #:contract non-empty-string?]
-   [encrypted-password binary/f]
-   [salt binary/f]))
-
-(define-schema feed
-  ([id id/f #:primary-key #:auto-increment]
-   [user-id id/f]
-   [rss string/f #:contract non-empty-string?]
-   [link string/f #:contract non-empty-string?]
-   [title string/f #:contract non-empty-string?]
-   [(enabled #t) boolean/f]))
-
-(define-schema article
-  ([id id/f #:primary-key #:auto-increment]
-   [user-id id/f]
-   [feed-id id/f]
-   [link string/f #:contract non-empty-string?]
-   [title string/f #:contract non-empty-string?]
-   [date datetime/f]
-   [content string/f #:contract non-empty-string?]
-   [(archived #f) boolean/f]))
-
 (create-table! *conn* 'user)
 (create-table! *conn* 'feed)
 (create-table! *conn* 'article)
-
-(define (count-articles #:user-id user-id #:archived [archived #f])
-  (~> (from article #:as a)
-      (select (count a.id))
-      (where (and (= a.user-id ,user-id)
-                  (= a.archived ,archived)))))
-
-(define (select-articles #:user-id user-id
-                         #:archived [archived #f]
-                         #:limit [lim *page-size*]
-                         #:offset [off 0])
-  (~> (from article #:as a)
-      (where (and (= a.user-id ,user-id)
-                  (= a.archived ,archived)))
-      (order-by ([date #:desc]))
-      (offset ,off)
-      (limit ,lim)))
-
-(define (find-article-by-id #:id id #:user-id user-id)
-  (~> (from article #:as a)
-      (where (and (= a.id ,id)
-                  (= a.user-id ,user-id)))
-      (limit 1)))
-
-(define (find-article-by-link #:user-id user-id #:link link)
-  (~> (from article #:as a)
-      (where (and (= a.user-id ,user-id)
-                  (= a.link ,link)))
-      (limit 1)))
-
-(define (archive-article-by-id id)
-  (~> (from article #:as a)
-      (update [archived #t])
-      (where (= id ,id))))
-
-(define (find-feed-by-id #:id id #:user-id user-id)
-  (~> (from feed #:as f)
-      (where (and (= f.id ,id)
-                  (= f.user-id ,user-id)))
-      (limit 1)))
-
-(define (find-feed-by-rss #:user-id user-id  #:rss rss)
-  (~> (from feed #:as f)
-      (where (and (= f.user-id ,user-id)
-                  (= f.rss ,rss)))
-      (limit 1)))
-
-(define (find-user-by-email email)
-  (~> (from user #:as u)
-      (where (= email ,email))
-      (limit 1)))
 
 (define (:page content)
   (let ([css (port->string (open-input-file "styles.css"))])
@@ -334,6 +256,7 @@
              [articles (sequence->list
                         (in-entities *conn* (select-articles #:user-id (current-user-id)
                                                              #:archived #f
+                                                             #:limit *page-size*
                                                              #:offset offset)))])
         (render :page (:articles-list articles current-page page-count)))))
 
