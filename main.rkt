@@ -13,9 +13,7 @@
          "lib/pair.rkt"
          "lib/string.rkt"
          "lib/crypto.rkt"
-         "lib/web/utils.rkt"
-         "lib/web/session.rkt"
-         "lib/web/flash.rkt"
+         "lib/web.rkt"
          "app/models.rkt")
 
 (provide start)
