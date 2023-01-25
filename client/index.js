@@ -5,6 +5,10 @@ socket.addEventListener("open", (event) =>
     socket.send("ping"), 60000))
 
 socket.addEventListener("message", (event) => {
+  if (event.data === "pong") {
+    return
+  }
+
   const msg = JSON.parse(event.data)
 
   switch (msg.notification) {
