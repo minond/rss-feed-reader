@@ -8,12 +8,18 @@
          "../lib/websocket/session.rkt")
 
 (provide start/ws
+         ws-send
          connections
          lookup-connection)
 
 (define connections (make-hash))
 (define (lookup-connection key)
   (hash-ref connections key #f))
+
+(define (ws-send session-key message)
+  (let ([ws-conn (lookup-connection session-key)])
+    (when (ws-conn? ws-conn)
+      (ws-send! ws-conn message))))
 
 (define (handler ws-conn state)
   (let ([session-key (ws-conn-session-key ws-conn)]
