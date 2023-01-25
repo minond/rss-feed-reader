@@ -39,7 +39,11 @@
                   [notice (read-flash 'notice)])
               (list (and alert (:flash 'alert alert))
                     (and notice (:flash 'notice notice))))
-            (:main content)))))))
+            (:main content)
+            (:script/inline 'type: "text/javascript" js)))))))
+
+(define js
+  (port->string (open-input-file "client/index.js")))
 
 (define font-styles-url
   "https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap")
