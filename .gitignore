@@ -2,4 +2,4 @@
 *.db
 *.rss
 *.xml
-/compiled
+compiled

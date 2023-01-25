@@ -27,16 +27,21 @@
                    (client-cookie-name cookie)))
          (request-cookies req)))
 
-(define (lookup-session req)
+(define (lookup-session req-or-string)
   (let/cc return
-    (unless (request? req)
+    (when (bytes? req-or-string)
+      (return (session-ref (bytes->string/utf-8 req-or-string))))
+    (when (string? req-or-string)
+      (return (session-ref req-or-string)))
+    (unless (request? req-or-string)
       (return (session #f #f)))
-    (define session-cookie (get-session-cookie req))
+    (define session-cookie (get-session-cookie req-or-string))
     (unless session-cookie
       (return (session #f #f)))
-    (hash-ref sessions
-              (client-cookie-value session-cookie)
-              (session #f #f))))
+    (session-ref (client-cookie-value session-cookie))))
+
+(define (session-ref key)
+  (hash-ref sessions key (session #f #f)))
 
 (define (destroy-session req)
   (let/cc return
@@ -69,6 +74,5 @@
 
 (define authenticated?
   (case-lambda
-    [() (authenticated? (current-request))]
-    [(req) (let ([session (lookup-session req)])
-             (and session (session-user-id session)))]))
+    [() (authenticated? (current-session))]
+    [(session) (and session (session-user-id session))]))

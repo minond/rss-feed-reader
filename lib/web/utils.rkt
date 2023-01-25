@@ -22,7 +22,7 @@
 
 (define ((authenticated-route handler) req . args)
   (let ([session (lookup-session req)])
-    (if (not (authenticated? req))
+    (if (not (authenticated? session))
         (redirect-to (new-session-route) permanently)
         (apply-handler handler session req args))))
 
