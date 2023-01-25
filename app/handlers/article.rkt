@@ -25,7 +25,7 @@
                                                   #:archived #f
                                                   #:limit page-size
                                                   #:offset offset)))])
-    (render :page (:articles-list articles current-page page-count))))
+    (render :page (:article-list articles current-page page-count))))
 
 (define (/arcticles/show req id)
   (let* ([article (lookup (current-database-connection)
