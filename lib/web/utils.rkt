@@ -17,8 +17,8 @@
   (get-binding key req #:default default))
 
 (define (get-binding key req #:default [default null])
-  (cdr (find-pair key (request-bindings req)
-                  #:default (cons key default))))
+  (cdr (or (assoc key (request-bindings req))
+           (cons key default))))
 
 (define ((authenticated-route handler) req . args)
   (let ([session (lookup-session req)])
