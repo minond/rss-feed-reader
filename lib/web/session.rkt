@@ -7,7 +7,7 @@
          "../random.rkt")
 
 (provide current-request current-session current-user-id
-         session? session-user-id session-flash lookup-session
+         session? (struct-out session) lookup-session
          update-session-cookie create-session-cookie clear-session-coookie
          authenticated? destroy-session new-session-route)
 
@@ -17,7 +17,7 @@
 (define current-session (make-parameter #f))
 (define current-user-id (make-parameter #f))
 
-(struct session (user-id flash))
+(struct session (key user-id flash))
 (define session-cookie-name "session")
 (define sessions (make-hash))
 
@@ -29,19 +29,17 @@
 
 (define (lookup-session req-or-string)
   (let/cc return
-    (when (bytes? req-or-string)
-      (return (session-ref (bytes->string/utf-8 req-or-string))))
     (when (string? req-or-string)
       (return (session-ref req-or-string)))
     (unless (request? req-or-string)
-      (return (session #f #f)))
+      (return (session #f #f #f)))
     (define session-cookie (get-session-cookie req-or-string))
     (unless session-cookie
-      (return (session #f #f)))
+      (return (session #f #f #f)))
     (session-ref (client-cookie-value session-cookie))))
 
 (define (session-ref key)
-  (hash-ref sessions key (session #f #f)))
+  (hash-ref sessions key (session #f #f #f)))
 
 (define (destroy-session req)
   (let/cc return
@@ -52,8 +50,8 @@
                   (client-cookie-value session-cookie))))
 
 (define (create-session user-id flash)
-  (let ([key (random-string)]
-        [data (session user-id flash)])
+  (let* ([key (random-string)]
+         [data (session key user-id flash)])
     (hash-set! sessions key data)
     key))
 

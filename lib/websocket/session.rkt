@@ -22,4 +22,4 @@
          [session-cookie (assoc #"session" cookie-value)]
          [session-key (and (pair? session-cookie)
                            (cdr session-cookie))])
-    session-key))
+    (bytes->string/utf-8 session-key)))
