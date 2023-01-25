@@ -8,16 +8,16 @@
          "../web/session.rkt"
          "session.rkt")
 
-(provide lookup-connection
+(provide lookup-connections
          ws-send
          authenticated-ping-pong)
 
 (define connections (make-hash))
-(define (lookup-connection key)
-  (hash-ref connections key #f))
+(define (lookup-connections key)
+  (hash-ref connections key '()))
 
 (define (ws-send session-key message)
-  (let ([ws-conn (lookup-connection session-key)])
+  (for ([ws-conn (lookup-connections session-key)])
     (when (ws-conn? ws-conn)
       (ws-send! ws-conn (encode message)))))
 
@@ -30,7 +30,10 @@
   (let ([session-key (ws-conn-session-key ws-conn)]
         [session (lookup-ws-session ws-conn)])
     (when (authenticated? session)
-      (hash-set! connections session-key ws-conn)
+      ; XXX Need to sync access to lookup-connections by session key
+      (let ([ws-conns (lookup-connections session-key)])
+        (hash-set! connections session-key (cons ws-conn ws-conns)))
+      (ws-send! ws-conn (format "(session ~a)" session-key))
 
       (let loop ()
         (match (ws-recv ws-conn #:payload-type 'text)
@@ -42,6 +45,10 @@
           [else
            (loop)]))
 
-      (hash-remove! connections session-key))
+      ; XXX Need to sync access to lookup-connections by session key
+      (let ([ws-conns (remove ws-conn (lookup-connections session-key))])
+        (hash-set! connections session-key ws-conns)
+        (when (empty? ws-conns)
+          (hash-remove! connections session-key))))
 
     (ws-close! ws-conn)))
