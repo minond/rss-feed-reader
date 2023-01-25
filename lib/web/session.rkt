@@ -49,15 +49,15 @@
     (hash-remove! sessions
                   (client-cookie-value session-cookie))))
 
-(define (create-session user-id flash)
-  (let* ([key (random-string)]
+(define (create-session user-id flash #:key [-key #f])
+  (let* ([key (or -key (random-string))]
          [data (session key user-id flash)])
     (hash-set! sessions key data)
     key))
 
-(define (create-session-cookie #:user-id user-id #:flash [flash #f])
+(define (create-session-cookie #:user-id user-id #:flash [flash #f] #:key [key #f])
   (make-cookie session-cookie-name
-               (create-session user-id flash)
+               (create-session user-id flash #:key key)
                #:path "/"
                #:expires (date->rfc7231 (+years (now/utc) 1))))
 
@@ -65,7 +65,8 @@
   (let ([orig-user-id (session-user-id session)]
         [orig-flash (session-flash session)])
     (create-session-cookie #:user-id (or user-id orig-user-id)
-                           #:flash (or flash orig-flash))))
+                           #:flash (or flash orig-flash)
+                           #:key (session-key session))))
 
 (define (clear-session-coookie)
   (logout-id-cookie session-cookie-name #:path "/"))
