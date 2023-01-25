@@ -1,6 +1,7 @@
 #lang racket
 
-(require net/rfc6455
+(require json
+         net/rfc6455
          net/rfc6455/conn-api
          net/cookies/server
          web-server/http/request-structs
@@ -16,9 +17,12 @@
   (hash-ref connections key #f))
 
 (define (ws-send session-key message)
-  (let ([ws-conn (lookup-connection session-key)])
+  (let ([ws-conn (lookup-connection session-key)]
+        [encoded (if (hash? message)
+                     (jsexpr->string message)
+                     message)])
     (when (ws-conn? ws-conn)
-      (ws-send! ws-conn message))))
+      (ws-send! ws-conn encoded))))
 
 (define (authenticated-ping-pong ws-conn state)
   (let ([session-key (ws-conn-session-key ws-conn)]
