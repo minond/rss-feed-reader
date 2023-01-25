@@ -7,8 +7,12 @@
          "../lib/web/session.rkt"
          "../lib/websocket.rkt")
 
-(provide start/ws)
+(provide start/ws
+         ws-send/feed-added)
 
 (define (start/ws)
   (ws-serve authenticated-ping-pong
             #:port 8082))
+
+(define (ws-send/feed-added session-key)
+  (ws-send session-key #hasheq((notification . "feed-added"))))
