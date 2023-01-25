@@ -1,5 +1,7 @@
 #lang racket
 
 (require "app/servlet.rkt")
+(require "app/websocket.rkt")
 
-(start)
+(start/ws)
+(start/servlet)

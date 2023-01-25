@@ -3,9 +3,9 @@
 (require web-server/servlet-env
          "dispatch.rkt")
 
-(provide start)
+(provide start/servlet)
 
-(define (start)
+(define (start/servlet)
   (serve/servlet app-dispatch
                  #:launch-browser? #f
                  #:servlet-path "/"

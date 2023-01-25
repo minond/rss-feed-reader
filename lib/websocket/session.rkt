@@ -5,7 +5,8 @@
          web-server/http/request-structs
          "../web/session.rkt")
 
-(provide lookup-ws-session)
+(provide ws-conn-session-key
+         lookup-ws-session)
 
 (define (lookup-ws-session ws-conn)
   (lookup-session (ws-conn-session-key ws-conn)))
