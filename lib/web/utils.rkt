@@ -1,7 +1,9 @@
 #lang racket
 
-(require threading
+(require json
+         threading
          web-server/servlet
+         (prefix-in : scribble/html/xml)
          "../pair.rkt"
          "session.rkt"
          "flash.rkt")
@@ -43,17 +45,31 @@
        (apply handler (cons req args)))]))
 
 (define (render :page content)
-  (let ([request (current-request)]
-        [session (current-session)]
-        [user-id (current-user-id)]
-        [flash (current-flash)])
+  (let* ([request (current-request)]
+         [session (current-session)]
+         [user-id (current-user-id)]
+         [flash (current-flash)]
+         [json? (wants-json? request)]
+         [content-type (if json?
+                           #"application/json; charset=utf-8"
+                           #"text/html; charset=utf-8")])
     (response/output
+     #:headers (list (header #"Content-Type" content-type))
      (lambda (op)
        (parameterize ([current-request request]
                       [current-session session]
                       [current-user-id user-id]
                       [current-flash flash])
-         (display (:page content) op))))))
+         (display (if json?
+                      (jsexpr->string (hash 'html (:xml->string content)))
+                      (:page content)) op))))))
+
+(define (wants-json? req)
+  (let ([accept (assq 'accept (request-headers req))])
+    (and accept
+         (string-contains?
+          (cdr accept)
+          "json"))))
 
 (define (redirect url)
   (~> (current-session)
