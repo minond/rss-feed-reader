@@ -1,4 +1,4 @@
- #lang racket
+#lang racket
 
 (require gregor
          "../models/article.rkt"
