@@ -20,7 +20,7 @@
                          (find-feed-by-rss #:user-id (current-user-id)
                                            #:rss rss))])
     (unless exists
-      (schedule-feed-download (current-user-id) rss))
+      (schedule-feed-download rss (current-user-id) (session-key (current-session))))
     (with-flash #:alert (and (not exists) "Downloading feed data and articles.")
       #:notice (and exists "This feed already exists.")
       (redirect "/articles"))))

@@ -3,18 +3,19 @@
 (require deta
          "../parameters.rkt"
          "../models.rkt"
+         "../websocket.rkt"
          (prefix-in rss: "../../lib/rss.rkt"))
 
 (provide schedule-feed-download)
 
-(define (schedule-feed-download user-id rss)
-  (thread-send feed-download-thread (list user-id rss)))
+(define (schedule-feed-download rss user-id session-key)
+  (thread-send feed-download-thread (list rss user-id session-key)))
 
 (define feed-download-thread
   (thread
    (lambda ()
      (let loop ()
-       (match-define (list user-id rss) (thread-receive))
+       (match-define (list rss user-id session-key) (thread-receive))
        (define feed (rss:feed! rss))
 
        (printf "saving feed ~a\n" rss)
@@ -44,4 +45,5 @@
                                       #:date (rss:article-date article)
                                       #:content (rss:article-content article)))))
        (printf "done processing ~a\n" rss)
+       (ws-send/feed-added session-key)
        (loop)))))
