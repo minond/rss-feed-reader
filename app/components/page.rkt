@@ -21,14 +21,14 @@
            (:meta 'charset: "utf-8")
            (:meta 'name: "viewport"
                   'content: "width=device-width, initial-scale=1.0")
-           (:title "feeder")
+           (:title "Feeder")
            (:style (:literal css))
            (:body
             (:header
              (:table
               (:tr
                (:td
-                (:a 'href: "/" "feeder"))
+                (:a 'href: "/" "Feeder"))
                (:td 'class: "actions"
                     (if (authenticated?)
                         (list (:a 'href: "/feeds/new" "Add feed")
