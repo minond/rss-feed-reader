@@ -33,7 +33,6 @@
       ; XXX Need to sync access to lookup-connections by session key
       (let ([ws-conns (lookup-connections session-key)])
         (hash-set! connections session-key (cons ws-conn ws-conns)))
-      (ws-send! ws-conn (format "(session ~a)" session-key))
 
       (let loop ()
         (match (ws-recv ws-conn #:payload-type 'text)
