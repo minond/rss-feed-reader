@@ -42,5 +42,6 @@
           [else
            (loop)]))
 
-      (hash-remove! connections session-key)
-      (ws-close! ws-conn))))
+      (hash-remove! connections session-key))
+
+    (ws-close! ws-conn)))
