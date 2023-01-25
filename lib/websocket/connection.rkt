@@ -17,12 +17,14 @@
   (hash-ref connections key #f))
 
 (define (ws-send session-key message)
-  (let ([ws-conn (lookup-connection session-key)]
-        [encoded (if (hash? message)
-                     (jsexpr->string message)
-                     message)])
+  (let ([ws-conn (lookup-connection session-key)])
     (when (ws-conn? ws-conn)
-      (ws-send! ws-conn encoded))))
+      (ws-send! ws-conn (encode message)))))
+
+(define (encode message)
+  (if (hash? message)
+      (jsexpr->string message)
+      message))
 
 (define (authenticated-ping-pong ws-conn state)
   (let ([session-key (ws-conn-session-key ws-conn)]
