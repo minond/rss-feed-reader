@@ -12,7 +12,7 @@
          (prefix-in : scribble/html/extra))
 
 (provide :article-full
-         :article-list)
+         :article-previews)
 
 (define (:article-full feed article)
   (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
@@ -24,7 +24,7 @@
      (:time 'datetime: datetime humandate)
      (:p (:literal (strip-xml (article-content article)))))))
 
-(define (:article-list articles current-page page-count)
+(define (:article-previews articles current-page page-count)
   (if (empty? articles)
       (list
        (:spacer #:direction horizontal
