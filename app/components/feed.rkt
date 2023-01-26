@@ -1,10 +1,11 @@
 #lang racket
 
-(require "../models/feed.rkt"
-         "shared.rkt"
+(require gregor
          (prefix-in : scribble/html/xml)
          (prefix-in : scribble/html/html)
-         (prefix-in : scribble/html/extra))
+         (prefix-in : scribble/html/extra)
+         "../models/feed.rkt"
+         "shared.rkt")
 
 (provide :feed-list
          :feed-form)
@@ -34,7 +35,7 @@
             (feed-stats-title feed)))
    (:td (feed-stats-total-count feed))
    (:td (feed-stats-archived-count feed))
-   (:td "December 27, 2022")))
+   (:td (~t (feed-stats-created-at feed) "MMMM d, yyyy"))))
 
 (define (:feed-form)
   (:form 'action: "/feeds/create"
