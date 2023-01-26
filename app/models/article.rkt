@@ -52,7 +52,8 @@
                   (= a.link ,link)))
       (limit 1)))
 
-(define (archive-article-by-id id)
+(define (archive-article-by-id #:id id #:user-id user-id)
   (~> (from article #:as a)
       (update [archived #t])
-      (where (= id ,id))))
+      (where (and (= a.id ,id)
+                  (= a.user-id ,user-id)))))

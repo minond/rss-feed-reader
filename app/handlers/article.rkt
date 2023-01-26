@@ -37,6 +37,7 @@
     (render :page (:article-full feed article))))
 
 (define (/articles/archive req id)
-  (query (current-database-connection) (archive-article-by-id id))
+  (query (current-database-connection) (archive-article-by-id #:id id
+                                                              #:user-id (current-user-id)))
   (with-flash #:alert "Article archived."
     (redirect "/articles")))
