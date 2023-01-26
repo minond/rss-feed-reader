@@ -14,7 +14,7 @@
    (:spacer #:direction vertical #:size small)
    (:table
     (:thead
-     (:th "Subscribed")
+     (:th)
      (:th "Title")
      (:th "Articles")
      (:th "Archived")
@@ -23,7 +23,12 @@
 
 (define (:feed-row feed)
   (:tr
-   (:td (if (feed-stats-subscribed feed) "Yes" "No"))
+   (:td 'class: "tc"
+        (:a 'href: "/feeds"
+            'class: (format "feed-subscription-toggle ~a"
+                            (if (feed-stats-subscribed feed)
+                                "subscribed"
+                                "unsubscribed"))))
    (:td (:a 'href: (feed-stats-link feed)
             'target: '_blank
             (feed-stats-title feed)))

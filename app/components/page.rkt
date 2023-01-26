@@ -89,7 +89,7 @@
      [table #:width 100%
             #:border-collapse collapse
             [td th
-                #:padding (0.75em 0.75em 0.75em 0)
+                #:padding 0.75em
                 #:margin 0]]
      [th #:text-align left
          #:font-weight 900]
@@ -141,6 +141,20 @@
     [.spacer.horizontal.small #:width 1em]
     [.spacer.horizontal.medium #:width 2em]
     [.spacer.horizontal.large #:width 4em]
+    [.tc #:text-align center]
+
+    [.feed-subscription-toggle #:height .9em
+                               #:width .9em
+                               #:border-radius .9em
+                               #:border (1px solid ,@border-color-normal)
+                               #:margin (0 auto)
+                               #:padding 0
+                               #:display block
+                               #:transition (background-color 100ms)]
+    [.feed-subscription-toggle.subscribed #:background-color ,@success-color-normal]
+    [.feed-subscription-toggle.unsubscribed #:background-color ,@failure-color-normal]
+    [.feed-subscription-toggle.subscribed:hover #:background-color ,@failure-color-normal]
+    [.feed-subscription-toggle.unsubscribed:hover #:background-color ,@success-color-normal]
 
     [article
      [time .action
