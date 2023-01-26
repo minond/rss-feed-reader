@@ -9,10 +9,6 @@
 
 (provide :page)
 
-(define (:flash kind text)
-  (:div 'class: (format "flash ~a" kind)
-        (:div 'class: "flash-text" text)))
-
 (define (:page content)
   (:xml->string
    (list (:doctype 'html)
@@ -28,7 +24,11 @@
              (:table
               (:tr
                (:td
-                (:a 'href: "/" "Feeder"))
+                (:a 'href: "/" "Feeder")
+                (let ([alert (read-flash 'alert)]
+                      [notice (read-flash 'notice)])
+                  (list (and alert (:flash 'alert alert))
+                        (and notice (:flash 'notice notice)))))
                (:td 'class: "actions"
                     (if (authenticated?)
                         (list (:a 'href: "/feeds/new" "Add feed")
@@ -36,12 +36,12 @@
                               (:a 'href: "/sessions/destroy" "Sign out"))
                         null)))))
             (:div 'class: "separator")
-            (let ([alert (read-flash 'alert)]
-                  [notice (read-flash 'notice)])
-              (list (and alert (:flash 'alert alert))
-                    (and notice (:flash 'notice notice))))
             (:main content)
             (:script/inline 'type: "text/javascript" js)))))))
+
+(define (:flash kind text)
+  (:div 'class: (format "flash ~a" kind)
+        (:div 'class: "flash-text" text)))
 
 (define js
   (port->string (open-input-file "client/index.js")))
@@ -51,10 +51,12 @@
 
 (define border-color-light (css-expr (apply rgb 187 187 187)))
 (define border-color-normal (css-expr (apply rgb 138 138 138)))
+(define failure-color-dark (css-expr (apply rgb 207 10 10)))
 (define failure-color-light (css-expr (apply rgb 255 240 240)))
 (define failure-color-normal (css-expr (apply rgb 233 170 170)))
 (define separator-color-light (css-expr (apply rgb 235 235 235)))
 (define separator-color-normal (css-expr (apply rgb 223 223 223)))
+(define success-color-dark (css-expr (apply rgb 1 166 1)))
 (define success-color-light (css-expr (apply rgb 245 255 245)))
 (define success-color-normal (css-expr (apply rgb 163 223 163)))
 (define text-color-light (css-expr (apply rgb 83 83 83)))
@@ -127,13 +129,12 @@
            #:margin-righ: 0.5em]
           [a #:font-size 0.8em]]
 
-    [.flash-text #:margin (0 auto)
-                 #:max-width ,@content-max-width
-                 #:padding .75em]
-    [.flash.alert #:border-bottom (1px solid ,@success-color-normal)
-                  #:background-color ,@success-color-light]
-    [.flash.notice #:border-bottom (1px solid ,@failure-color-normal)
-                   #:background-color ,@failure-color-light]
+    [.flash #:display inline-block
+            #:font-size .9em
+            #:margin-left 1em
+            #:text-transform lowercase]
+    [.flash.alert #:color ,@success-color-dark]
+    [.flash.notice #:color ,@failure-color-dark]
 
     [.separator #:border-bottom (1px solid ,@separator-color-normal)]
     [.spacer #:display inline-block]
@@ -159,7 +160,7 @@
     [.feed-subscription-toggle.unsubscribed:hover #:background-color ,@success-color-normal]
 
     [.feed-row.unsubscribed
-      [* #:color ,@text-color-lighter]]
+     [* #:color ,@text-color-lighter]]
 
     [article
      [time .action
