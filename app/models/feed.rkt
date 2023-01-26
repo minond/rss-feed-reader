@@ -42,7 +42,7 @@
       (join article #:as a #:on (= f.id a.feed_id))
       (where (= f.user-id ,user-id))
       (group-by f.id f.title)
-      (order-by ([f.subscribed] [f.title]))
+      (order-by ([f.title]))
       (project-onto feed-stats-schema)))
 
 (define (find-feed-by-id #:id id #:user-id user-id)

@@ -26,7 +26,7 @@
   (let-values ([(route class) (if (feed-stats-subscribed feed)
                                   (values "/feeds/~a/unsubscribe" "subscribed")
                                   (values "/feeds/~a/subscribe" "unsubscribed"))])
-    (:tr
+    (:tr 'class: (string-join (list "feed-row" class))
      (:td 'class: "tc"
           (:a 'href: (format route (feed-stats-id feed))
                              'class: (format "feed-subscription-toggle ~a" class))

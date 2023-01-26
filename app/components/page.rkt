@@ -58,6 +58,7 @@
 (define success-color-light (css-expr (apply rgb 245 255 245)))
 (define success-color-normal (css-expr (apply rgb 163 223 163)))
 (define text-color-light (css-expr (apply rgb 83 83 83)))
+(define text-color-lighter (css-expr (apply rgb 136 136 136)))
 
 (define content-max-width (css-expr 50em))
 
@@ -156,6 +157,9 @@
     [.feed-subscription-toggle.unsubscribed #:background-color ,@failure-color-normal]
     [.feed-subscription-toggle.subscribed:hover #:background-color ,@failure-color-normal]
     [.feed-subscription-toggle.unsubscribed:hover #:background-color ,@success-color-normal]
+
+    [.feed-row.unsubscribed
+      [* #:color ,@text-color-lighter]]
 
     [article
      [time .action
