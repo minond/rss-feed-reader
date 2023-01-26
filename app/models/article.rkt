@@ -23,19 +23,26 @@
    [(archived #f) boolean/f]
    [(created-at (now/utc)) datetime/f]))
 
-(define (count-articles #:user-id user-id #:archived [archived #f])
+(define (count-articles #:user-id user-id
+                        #:archived [archived #f]
+                        #:subscribed [subscribed #t])
   (~> (from article #:as a)
       (select (count a.id))
+      (join feed #:as f #:on (= f.id a.feed_id))
       (where (and (= a.user-id ,user-id)
-                  (= a.archived ,archived)))))
+                  (= a.archived ,archived)
+                  (= f.subscribed ,subscribed)))))
 
 (define (select-articles #:user-id user-id
                          #:archived [archived #f]
+                         #:subscribed [subscribed #t]
                          #:limit lim
                          #:offset [off 0])
   (~> (from article #:as a)
+      (join feed #:as f #:on (= f.id a.feed_id))
       (where (and (= a.user-id ,user-id)
-                  (= a.archived ,archived)))
+                  (= a.archived ,archived)
+                  (= f.subscribed ,subscribed)))
       (order-by ([date #:desc]))
       (offset ,off)
       (limit ,lim)))
