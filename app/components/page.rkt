@@ -124,7 +124,13 @@
                    #:background-color ,@failure-color-light]
 
     [.separator #:border-bottom (1px solid ,@separator-color-normal)]
-    [.pl1 #:padding-left 1em]
+    [.spacer #:display inline-block]
+    [.spacer.vertical.small #:height 1em]
+    [.spacer.vertical.medium #:height 2em]
+    [.spacer.vertical.large #:height 4em]
+    [.spacer.horizontal.small #:width 1em]
+    [.spacer.horizontal.medium #:width 2em]
+    [.spacer.horizontal.large #:width 4em]
 
     [article
      [time .action

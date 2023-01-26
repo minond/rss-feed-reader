@@ -5,6 +5,7 @@
          "../models/feed.rkt"
          "../../lib/string.rkt"
          "pagination.rkt"
+         "shared.rkt"
          (prefix-in : scribble/html/xml)
          (prefix-in : scribble/html/html)
          (prefix-in : scribble/html/extra))
@@ -24,27 +25,26 @@
 
 (define (:article-list articles current-page page-count)
   (append
-   (map (lambda (article)
-          (:article-row null article)) articles)
+   (map :article-row articles)
    (:pagination current-page page-count)))
 
-(define (:article-row feed article)
+(define (:article-row article)
   (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
         [humandate (~t (article-date article) "MMMM d, yyyy")])
     (:article 'class: "row"
               (:h4
                (:a 'href: (format "/articles/~a" (article-id article))
                    (article-title article)))
-              ; (:h5 (feed-title feed))
               (:p (string-chop (strip-html (article-content article)) 300 #:end "…"))
               (:time 'datetime: datetime humandate)
-              (:a 'class: "pl1 action showonhover"
+              (:spacer #:direction horizontal
+                       #:size small)
+              (:a 'class: "action showonhover"
                   'href: (article-link article)
                   'target: "_blank"
                   "read")
-              ; (:a 'class: "pl1 action showonhover"
-              ;     'href: "#save"
-              ;     "save")
-              (:a 'class: "pl1 action showonhover"
+              (:spacer #:direction horizontal
+                       #:size small)
+              (:a 'class: "action showonhover"
                   'href: (format "/articles/~a/archive" (article-id article))
                   "archive"))))
