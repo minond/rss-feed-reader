@@ -8,8 +8,8 @@
          "../models.rkt")
 
 (provide /articles
-         /arcticles/show
-         /articles/archive)
+         /arcticles/<id>/show
+         /articles/<id>/archive)
 
 (define page-size 10)
 
@@ -27,7 +27,7 @@
                                                   #:offset offset)))])
     (render :page (:article-list articles current-page page-count))))
 
-(define (/arcticles/show req id)
+(define (/arcticles/<id>/show req id)
   (let* ([article (lookup (current-database-connection)
                           (find-article-by-id #:id id
                                               #:user-id (current-user-id)))]
@@ -36,7 +36,7 @@
                                         #:user-id (current-user-id)))])
     (render :page (:article-full feed article))))
 
-(define (/articles/archive req id)
+(define (/articles/<id>/archive req id)
   (query (current-database-connection) (archive-article-by-id #:id id
                                                               #:user-id (current-user-id)))
   (with-flash #:alert "Article archived."

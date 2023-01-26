@@ -23,6 +23,6 @@
    [("feeds" (integer-arg) "subscribe") (authenticated-route /feeds/<id>/subscribe)]
    [("feeds" (integer-arg) "subscribe") #:method "put" (authenticated-route /feeds/<id>/subscribe)]
    [("articles") (authenticated-route /articles)]
-   [("articles" (integer-arg)) (authenticated-route /arcticles/show)]
-   [("articles" (integer-arg) "archive") (authenticated-route /articles/archive)]
+   [("articles" (integer-arg)) (authenticated-route /arcticles/<id>/show)]
+   [("articles" (integer-arg) "archive") (authenticated-route /articles/<id>/archive)]
    [else (authenticated-route /articles)]))
