@@ -8,8 +8,15 @@
          "../models.rkt"
          "../workers/feed-download.rkt")
 
-(provide /feeds/new
+(provide /feeds
+         /feeds/new
          /feeds/create)
+
+(define (/feeds req)
+  (let ([feed-stats (sequence->list
+                     (in-entities (current-database-connection)
+                                  (select-feed-stats #:user-id (current-user-id))))])
+    (render :page (:feed-list feed-stats))))
 
 (define (/feeds/new req)
   (render :page (:feed-form)))

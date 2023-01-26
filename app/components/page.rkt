@@ -75,7 +75,8 @@
     [main #:padding 1em]
     [header #:font-weight bold
             #:padding (.5em 1em)
-            [table #:width 100%]
+            [table #:width 100%
+                   #:border-collapse collapse]
             [.actions #:text-align right
                       [a #:font-size 0.8em
                          #:margin-left 1.5em
@@ -84,6 +85,15 @@
     [header main
             #:margin (0 auto)
             #:max-width ,@content-max-width]
+    [main
+     [table #:width 100%
+            #:border-collapse collapse
+            [td th
+                #:padding (0.75em 0.75em 0.75em 0)
+                #:margin 0]]
+     [th #:text-align left
+         #:font-weight 900]
+     [td #:border-top (1px solid ,@border-color-light)]]
     [a #:color initial
        #:text-decoration none]
     [a:hover #:text-decoration underline]
