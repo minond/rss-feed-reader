@@ -1,6 +1,7 @@
 #lang racket
 
 (require threading
+         gregor
          deta)
 
 (provide (struct-out feed)
@@ -16,7 +17,8 @@
    [rss string/f #:contract non-empty-string?]
    [link string/f #:contract non-empty-string?]
    [title string/f #:contract non-empty-string?]
-   [(subscribed #t) boolean/f]))
+   [(subscribed #t) boolean/f]
+   [(created-at (now/utc)) datetime/f]))
 
 (define-schema feed-stats
   #:virtual
@@ -24,13 +26,14 @@
    [title string/f]
    [link string/f]
    [subscribed boolean/f]
+   [created-at datetime/f]
    [total-count integer/f]
    [archived-count integer/f]
    [unarchived-count integer/f]))
 
 (define (select-feed-stats #:user-id user-id)
   (~> (from feed #:as f)
-      (select f.id f.title f.link f.subscribed
+      (select f.id f.title f.link f.subscribed f.created-at
               (count a.id)
               (sum (iif (= a.archived #t) 1 0))
               (sum (iif (= a.archived #f) 1 0)))

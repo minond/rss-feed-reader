@@ -1,6 +1,7 @@
 #lang racket
 
 (require threading
+         gregor
          deta)
 
 (provide (struct-out article)
@@ -19,7 +20,8 @@
    [title string/f #:contract non-empty-string?]
    [date datetime/f]
    [content string/f #:contract non-empty-string?]
-   [(archived #f) boolean/f]))
+   [(archived #f) boolean/f]
+   [(created-at (now/utc)) datetime/f]))
 
 (define (count-articles #:user-id user-id #:archived [archived #f])
   (~> (from article #:as a)

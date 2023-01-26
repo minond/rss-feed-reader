@@ -1,6 +1,7 @@
 #lang racket
 
 (require threading
+         gregor
          deta)
 
 (provide (struct-out user)
@@ -11,7 +12,8 @@
   ([id id/f #:primary-key #:auto-increment]
    [email string/f #:unique #:contract non-empty-string?]
    [encrypted-password binary/f]
-   [salt binary/f]))
+   [salt binary/f]
+   [(created-at (now/utc)) datetime/f]))
 
 (define (find-user-by-email email)
   (~> (from user #:as u)
