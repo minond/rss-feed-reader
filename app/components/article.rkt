@@ -34,13 +34,13 @@
            subscribe to a feed.")
        (:feed-form))
       (list
-       (map :article-row articles)
+       (map :article-preview articles)
        (:pagination current-page page-count))))
 
-(define (:article-row article)
+(define (:article-preview article)
   (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
         [humandate (~t (article-date article) "MMMM d, yyyy")])
-    (:article 'class: "row"
+    (:article 'class: "article-preview show-on-hover-container"
               (:h4
                (:a 'href: (format "/articles/~a" (article-id article))
                    (article-title article)))
@@ -48,12 +48,12 @@
               (:time 'datetime: datetime humandate)
               (:spacer #:direction horizontal
                        #:size small)
-              (:a 'class: "action showonhover"
+              (:a 'class: "action show-on-hover"
                   'href: (article-link article)
                   'target: "_blank"
                   "read")
               (:spacer #:direction horizontal
                        #:size small)
-              (:a 'class: "action showonhover"
+              (:a 'class: "action show-on-hover"
                   'href: (format "/articles/~a/archive" (article-id article))
                   "archive"))))

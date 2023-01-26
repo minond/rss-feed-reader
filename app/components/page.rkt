@@ -128,6 +128,10 @@
            #:margin-top 0.5em
            #:margin-righ: 0.5em]
           [a #:font-size 0.8em]]
+    [article
+     [time .action
+           #:font-size 0.75em
+           #:color ,@text-color-light]]
 
     [.flash #:display inline-block
             #:font-size .9em
@@ -162,19 +166,15 @@
     [.feed-row.unsubscribed
      [* #:color ,@text-color-lighter]]
 
-    [article
-     [time .action
-           #:font-size 0.75em
-           #:color ,@text-color-light]]
-    [article.row #:border-bottom (1px solid ,@separator-color-light)
-                 #:padding (2em 0)
-                 [p #:font-size 0.9em
-                    #:color ,@text-color-light]]
-    [article.row
-     [.showonhover #:opacity 0
-                   #:transition (opacity .2s)]]
-    [article.row:hover
-     [.showonhover #:opacity 1]]
+    [.article-preview #:border-bottom (1px solid ,@separator-color-light)
+                      #:padding (2em 0)
+                      [p #:font-size 0.9em
+                         #:color ,@text-color-light]]
+    [.show-on-hover-container
+     [.show-on-hover #:opacity 0
+                     #:transition (opacity .2s)]]
+    [.show-on-hover-container:hover
+     [.show-on-hover #:opacity 1]]
 
     [.page-links #:padding 1em
                  #:text-align center
