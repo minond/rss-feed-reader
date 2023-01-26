@@ -14,7 +14,7 @@
    (:spacer #:direction vertical #:size small)
    (:table
     (:thead
-     (:th "Enabled")
+     (:th "Subscribed")
      (:th "Title")
      (:th "Articles")
      (:th "Archived")
@@ -23,7 +23,7 @@
 
 (define (:feed-row feed)
   (:tr
-   (:td (if (feed-stats-enabled feed) "Yes" "No"))
+   (:td (if (feed-stats-subscribed feed) "Yes" "No"))
    (:td (:a 'href: (feed-stats-link feed)
             'target: '_blank
             (feed-stats-title feed)))

@@ -16,28 +16,28 @@
    [rss string/f #:contract non-empty-string?]
    [link string/f #:contract non-empty-string?]
    [title string/f #:contract non-empty-string?]
-   [(enabled #t) boolean/f]))
+   [(subscribed #t) boolean/f]))
 
 (define-schema feed-stats
   #:virtual
   ([id id/f]
    [title string/f]
    [link string/f]
-   [enabled boolean/f]
+   [subscribed boolean/f]
    [total-count integer/f]
    [archived-count integer/f]
    [unarchived-count integer/f]))
 
 (define (select-feed-stats #:user-id user-id)
   (~> (from feed #:as f)
-      (select f.id f.title f.link f.enabled
+      (select f.id f.title f.link f.subscribed
               (count a.id)
               (sum (iif (= a.archived #t) 1 0))
               (sum (iif (= a.archived #f) 1 0)))
       (join article #:as a #:on (= f.id a.feed_id))
       (where (= f.user-id ,user-id))
       (group-by f.id f.title)
-      (order-by ([f.enabled] [f.title]))
+      (order-by ([f.subscribed] [f.title]))
       (project-onto feed-stats-schema)))
 
 (define (find-feed-by-id #:id id #:user-id user-id)
