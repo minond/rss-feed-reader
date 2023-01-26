@@ -5,6 +5,7 @@
          "../models/feed.rkt"
          "../../lib/string.rkt"
          "pagination.rkt"
+         "feed.rkt"
          "shared.rkt"
          (prefix-in : scribble/html/xml)
          (prefix-in : scribble/html/html)
@@ -24,9 +25,17 @@
      (:p (:literal (strip-xml (article-content article)))))))
 
 (define (:article-list articles current-page page-count)
-  (append
-   (map :article-row articles)
-   (:pagination current-page page-count)))
+  (if (empty? articles)
+      (list
+       (:spacer #:direction horizontal
+                #:size large)
+       (:p 'class: "tc"
+           "There are no articles to show at this time. Use the form below to
+           subscribe to a feed.")
+       (:feed-form))
+      (list
+       (map :article-row articles)
+       (:pagination current-page page-count))))
 
 (define (:article-row article)
   (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
