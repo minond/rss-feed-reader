@@ -9,7 +9,9 @@
          make-feed
          select-feed-stats
          find-feed-by-id
-         find-feed-by-rss)
+         find-feed-by-rss
+         subscribe-to-feed
+         unsubscribe-from-feed)
 
 (define-schema feed
   ([id id/f #:primary-key #:auto-increment]
@@ -54,3 +56,15 @@
       (where (and (= f.user-id ,user-id)
                   (= f.rss ,rss)))
       (limit 1)))
+
+(define (subscribe-to-feed #:id id #:user-id user-id)
+  (~> (from feed #:as f)
+      (update [subscribed #t])
+      (where (and (= f.id ,id)
+                  (= f.user-id ,user-id)))))
+
+(define (unsubscribe-from-feed #:id id #:user-id user-id)
+  (~> (from feed #:as f)
+      (update [subscribed #f])
+      (where (and (= f.id ,id)
+                  (= f.user-id ,user-id)))))

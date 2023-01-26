@@ -1,6 +1,7 @@
 #lang racket
 
-(require deta
+(require db
+         deta
          "../../lib/web.rkt"
          "../../lib/crypto.rkt"
          "../parameters.rkt"
@@ -10,7 +11,9 @@
 
 (provide /feeds
          /feeds/new
-         /feeds/create)
+         /feeds/create
+         /feeds/<id>/subscribe
+         /feeds/<id>/unsubscribe)
 
 (define (/feeds req)
   (let ([feed-stats (sequence->list
@@ -31,3 +34,15 @@
     (with-flash #:alert (and (not exists) "Downloading feed data and articles.")
       #:notice (and exists "This feed already exists.")
       (redirect "/articles"))))
+
+(define (/feeds/<id>/subscribe req id)
+  (query (current-database-connection) (subscribe-to-feed #:id id
+                                                          #:user-id (current-user-id)))
+  (with-flash #:alert "Subscribed to feed."
+    (redirect "/feeds")))
+
+(define (/feeds/<id>/unsubscribe req id)
+  (query (current-database-connection) (unsubscribe-from-feed #:id id
+                                                              #:user-id (current-user-id)))
+  (with-flash #:alert "Unsubscribed from feed."
+    (redirect "/feeds")))

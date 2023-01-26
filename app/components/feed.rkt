@@ -23,19 +23,19 @@
     (:tbody (map :feed-row feed-stats)))))
 
 (define (:feed-row feed)
-  (:tr
-   (:td 'class: "tc"
-        (:a 'href: "/feeds"
-            'class: (format "feed-subscription-toggle ~a"
-                            (if (feed-stats-subscribed feed)
-                                "subscribed"
-                                "unsubscribed"))))
-   (:td (:a 'href: (feed-stats-link feed)
-            'target: '_blank
-            (feed-stats-title feed)))
-   (:td (feed-stats-total-count feed))
-   (:td (feed-stats-archived-count feed))
-   (:td (~t (feed-stats-created-at feed) "MMMM d, yyyy"))))
+  (let-values ([(route class) (if (feed-stats-subscribed feed)
+                                  (values "/feeds/~a/unsubscribe" "subscribed")
+                                  (values "/feeds/~a/subscribe" "unsubscribed"))])
+    (:tr
+     (:td 'class: "tc"
+          (:a 'href: (format route (feed-stats-id feed))
+                             'class: (format "feed-subscription-toggle ~a" class))
+          (:td (:a 'href: (feed-stats-link feed)
+                   'target: '_blank
+                   (feed-stats-title feed)))
+          (:td (feed-stats-total-count feed))
+          (:td (feed-stats-archived-count feed))
+          (:td (~t (feed-stats-created-at feed) "MMMM d, yyyy"))))))
 
 (define (:feed-form)
   (:form 'action: "/feeds/create"
