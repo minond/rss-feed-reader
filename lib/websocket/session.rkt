@@ -13,13 +13,15 @@
 
 (define (ws-conn-session-key ws-conn)
   (let* ([headers (ws-conn-base-headers ws-conn)]
-         [cookie-header (or (findf (lambda (header)
-                                     (equal? #"Cookie" (header-field header)))
-                                   headers)
-                            "")]
-         [cookie-value (cookie-header->alist
-                        (header-value cookie-header))]
+         [cookie-header (findf (lambda (header)
+                                 (equal? #"Cookie" (header-field header)))
+                               headers)]
+         [cookie-value (if cookie-header
+                           (cookie-header->alist
+                            (header-value cookie-header))
+                           '())]
          [session-cookie (assoc #"session" cookie-value)]
          [session-key (and (pair? session-cookie)
                            (cdr session-cookie))])
-    (bytes->string/utf-8 session-key)))
+    (and session-key
+         (bytes->string/utf-8 session-key))))
