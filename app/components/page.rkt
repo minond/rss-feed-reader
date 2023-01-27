@@ -133,7 +133,18 @@
            #:font-size 0.75em
            #:color ,@text-color-light]]
 
+    [@keyframes
+     fadein
+     [from #:opacity 0]
+     [to #:opacity 1]]
+
+    [@keyframes
+     fadeout
+     [from #:opacity 1]
+     [to #:opacity 0]]
+
     [.flash #:display inline-block
+            #:animation (fadein .2s linear 0s) (fadeout .2s linear forwards 10s)
             #:font-size .9em
             #:margin-left 1em
             #:text-transform lowercase]
