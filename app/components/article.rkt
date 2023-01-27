@@ -20,6 +20,7 @@
         [humandate (~t (article-date article) "MMMM d, yyyy")])
     (:article
      (:h2 (:a 'href: (article-link article)
+              'target: '_blank
               (article-title article)))
      (:h4 (feed-title feed))
      (:time 'datetime: datetime humandate)
@@ -77,7 +78,7 @@
                        #:size small)
               (:a 'class: "action show-on-hover"
                   'href: (article-link article)
-                  'target: "_blank"
+                  'target: '_blank
                   "read")
               (:spacer #:direction horizontal
                        #:size small)
