@@ -10,7 +10,8 @@
          select-articles
          find-article-by-id
          find-article-by-link
-         archive-article-by-id)
+         archive-article-by-id
+         unarchive-article-by-id)
 
 (define-schema article
   ([id id/f #:primary-key #:auto-increment]
@@ -62,5 +63,11 @@
 (define (archive-article-by-id #:id id #:user-id user-id)
   (~> (from article #:as a)
       (update [archived #t])
+      (where (and (= a.id ,id)
+                  (= a.user-id ,user-id)))))
+
+(define (unarchive-article-by-id #:id id #:user-id user-id)
+  (~> (from article #:as a)
+      (update [archived #f])
       (where (and (= a.id ,id)
                   (= a.user-id ,user-id)))))

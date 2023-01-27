@@ -26,4 +26,6 @@
    [("articles" (integer-arg)) (authenticated-route /arcticles/<id>/show)]
    [("articles" (integer-arg) "archive") #:method "put" (authenticated-route /articles/<id>/archive)]
    [("articles" (integer-arg) "archive") (authenticated-route /articles/<id>/archive)]
+   [("articles" (integer-arg) "unarchive") #:method "put" (authenticated-route /articles/<id>/unarchive)]
+   [("articles" (integer-arg) "unarchive") (authenticated-route /articles/<id>/unarchive)]
    [else (authenticated-route /articles)]))

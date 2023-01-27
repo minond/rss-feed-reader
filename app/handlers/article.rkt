@@ -9,7 +9,8 @@
 
 (provide /articles
          /arcticles/<id>/show
-         /articles/<id>/archive)
+         /articles/<id>/archive
+         /articles/<id>/unarchive)
 
 (define page-size 10)
 
@@ -40,4 +41,10 @@
   (query (current-database-connection) (archive-article-by-id #:id id
                                                               #:user-id (current-user-id)))
   (with-flash #:alert "Article archived."
-    (redirect "/articles")))
+    (redirect-back)))
+
+(define (/articles/<id>/unarchive req id)
+  (query (current-database-connection) (unarchive-article-by-id #:id id
+                                                                #:user-id (current-user-id)))
+  (with-flash #:alert "Article unarchived."
+    (redirect-back)))
