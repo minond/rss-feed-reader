@@ -13,7 +13,8 @@
          authenticated-route
          route
          render
-         redirect)
+         redirect
+         redirect-back)
 
 (define (get-parameter key req #:default [default ""])
   (get-binding key req #:default default))
@@ -77,3 +78,9 @@
       (cookie->header _)
       (list _)
       (redirect-to url permanently #:headers _)))
+
+(define (redirect-back)
+  (let ([referer (assq 'referer (request-headers (current-request)))])
+    (if referer
+        (redirect (cdr referer))
+        (redirect "/"))))
