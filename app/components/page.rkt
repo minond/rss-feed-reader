@@ -61,6 +61,7 @@
 (define success-color-normal (css-expr (apply rgb 163 223 163)))
 (define text-color-light (css-expr (apply rgb 83 83 83)))
 (define text-color-lighter (css-expr (apply rgb 136 136 136)))
+(define link-color-normal (css-expr (apply rgb 28 28 255)))
 
 (define content-max-width (css-expr 50em))
 
@@ -79,6 +80,8 @@
     [main #:padding 1em]
     [header #:font-weight bold
             #:padding (.5em 1em)
+            [a #:color initial
+               #:text-decoration none]
             [table #:width 100%
                    #:border-collapse collapse]
             [.actions #:text-align right
@@ -98,13 +101,15 @@
      [th #:text-align left
          #:font-weight 900]
      [td #:border-top (1px solid ,@border-color-light)]]
-    [a #:color initial
+    [a #:color ,@link-color-normal
        #:text-decoration none]
-    [a:hover #:text-decoration underline]
     [h1 h2 h3
         #:line-height 1.2]
     [h4 h5
         #:margin (0 0 1em 0)]
+    [h1 h2 h3 h4 h5
+        #:color initial
+        [a #:color initial]]
     [form #:margin (3em auto)
           #:max-width 40em
           [(attribute input (= type "url"))

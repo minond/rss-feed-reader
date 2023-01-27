@@ -19,7 +19,8 @@
      (:th "Title")
      (:th "Articles")
      (:th "Archived")
-     (:th "Date subscribed"))
+     (:th "Date subscribed")
+     (:th ""))
     (:tbody (map :feed-row feed-stats)))))
 
 (define (:feed-row feed)
@@ -35,7 +36,10 @@
                    (feed-stats-title feed)))
           (:td (feed-stats-total-count feed))
           (:td (feed-stats-archived-count feed))
-          (:td (~t (feed-stats-created-at feed) "MMMM d, yyyy"))))))
+          (:td (~t (feed-stats-created-at feed) "MMMM d, yyyy"))
+          (:td (:a 'href: (feed-stats-link feed)
+                   'target: '_blank
+                   "Visit site"))))))
 
 (define (:feed-form)
   (:form 'action: "/feeds/create"

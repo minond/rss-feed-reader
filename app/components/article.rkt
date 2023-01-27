@@ -41,10 +41,9 @@
   (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
         [humandate (~t (article-date article) "MMMM d, yyyy")])
     (:article 'class: "article-preview show-on-hover-container"
-              (:h4
-               (:a 'href: (format "/articles/~a" (article-id article))
-                   (article-title article)))
-              (:p (string-chop (strip-html (article-content article)) 300 #:end "…"))
+              (:a 'href: (format "/articles/~a" (article-id article))
+                  (:h4 (article-title article))
+                  (:p (string-chop (strip-html (article-content article)) 300 #:end "…")))
               (:time 'datetime: datetime humandate)
               (:spacer #:direction horizontal
                        #:size small)
