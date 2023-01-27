@@ -19,7 +19,7 @@
   (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
         [humandate (~t (article-date article) "MMMM d, yyyy")])
     (:article
-     (:h1 (:a 'href: (article-link article)
+     (:h2 (:a 'href: (article-link article)
               (article-title article)))
      (:h4 (feed-title feed))
      (:time 'datetime: datetime humandate)
@@ -70,7 +70,7 @@
         [humandate (~t (article-date article) "MMMM d, yyyy")])
     (:article 'class: "article-preview show-on-hover-container"
               (:a 'href: (format "/articles/~a" (article-id article))
-                  (:h4 (article-title article))
+                  (:h3 (article-title article))
                   (:p (string-chop (strip-html (article-content article)) 300 #:end "…")))
               (:time 'datetime: datetime humandate)
               (:spacer #:direction horizontal

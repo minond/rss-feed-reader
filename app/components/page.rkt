@@ -49,11 +49,13 @@
 (define font-styles-url
   "https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap")
 
+(define body-background-color (css-expr (apply rgba 250 247 239 0.35)))
 (define border-color-light (css-expr (apply rgb 187 187 187)))
 (define border-color-normal (css-expr (apply rgb 138 138 138)))
 (define failure-color-dark (css-expr (apply rgb 207 10 10)))
 (define failure-color-light (css-expr (apply rgb 255 240 240)))
 (define failure-color-normal (css-expr (apply rgb 233 170 170)))
+(define link-color-normal (css-expr (apply rgb 28 28 255)))
 (define separator-color-light (css-expr (apply rgb 235 235 235)))
 (define separator-color-normal (css-expr (apply rgb 223 223 223)))
 (define success-color-dark (css-expr (apply rgb 1 166 1)))
@@ -61,7 +63,6 @@
 (define success-color-normal (css-expr (apply rgb 163 223 163)))
 (define text-color-light (css-expr (apply rgb 83 83 83)))
 (define text-color-lighter (css-expr (apply rgb 136 136 136)))
-(define link-color-normal (css-expr (apply rgb 28 28 255)))
 
 (define content-max-width (css-expr 50em))
 
@@ -72,6 +73,7 @@
 
     [body #:cursor default
           #:font-family "Libre Baskerville"
+          #:background-color ,@body-background-color
           #:margin 0
           #:line-height 1.6
           #:font-size 16px
@@ -105,7 +107,7 @@
        #:text-decoration none]
     [h1 h2 h3
         #:line-height 1.2]
-    [h4 h5
+    [h3 h4 h5
         #:margin (0 0 1em 0)]
     [h1 h2 h3 h4 h5
         #:color initial
