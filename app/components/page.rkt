@@ -167,7 +167,8 @@
     [.tc #:text-align center]
     [.wsnw #:white-space nowrap]
 
-    [.feed-subscription-toggle #:height .9em
+    [.feed-subscription-toggle .article-archive-toggle
+                               #:height .9em
                                #:width .9em
                                #:border-radius .9em
                                #:border (1px solid ,@border-color-normal)
@@ -175,13 +176,17 @@
                                #:padding 0
                                #:display block
                                #:transition (background-color 100ms)]
-    [.feed-subscription-toggle.subscribed #:background-color ,@success-color-normal]
-    [.feed-subscription-toggle.unsubscribed #:background-color ,@failure-color-normal]
-    [.feed-subscription-toggle.subscribed:hover #:background-color ,@failure-color-normal]
-    [.feed-subscription-toggle.unsubscribed:hover #:background-color ,@success-color-normal]
+    [.feed-subscription-toggle.subscribed .article-archive-toggle.unarchived
+                                          #:background-color ,@success-color-normal]
+    [.feed-subscription-toggle.unsubscribed .article-archive-toggle.archived
+                                            #:background-color ,@failure-color-normal]
+    [.feed-subscription-toggle.subscribed:hover .article-archive-toggle.unarchived:hover
+                                                #:background-color ,@failure-color-normal]
+    [.feed-subscription-toggle.unsubscribed:hover .article-archive-toggle.archived:hover
+                                                  #:background-color ,@success-color-normal]
 
-    [.feed-row.unsubscribed
-     [* #:color ,@text-color-lighter]]
+    [.feed-row.unsubscribed .article-row.archived
+                            [* #:color ,@text-color-lighter]]
 
     [.article-preview #:border-bottom (1px solid ,@separator-color-light)
                       #:padding (2em 0)
