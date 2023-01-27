@@ -36,8 +36,8 @@
      (:th "Date")
      (:th ""))
     (:tbody (map :article-row articles)))
-    (:spacer #:direction horizontal #:size small)
-    (:pagination current-page page-count)))
+   (:spacer #:direction horizontal #:size small)
+   (:pagination current-page page-count)))
 
 (define (:article-row article)
   (let-values ([(route class) (if (article-archived article)
