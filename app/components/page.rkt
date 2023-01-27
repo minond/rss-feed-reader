@@ -147,12 +147,16 @@
 
     [@keyframes
      fadeout
-     [from #:opacity 1]
-     [to #:opacity 0]]
+     [from #:opacity 1
+           #:left 0]
+     [to #:opacity 0
+         #:left 10px]]
 
     [.flash #:display inline-block
-            #:animation (fadein .2s linear 0s) (fadeout .2s linear forwards 10s)
+            #:animation (fadein .15s linear 0s) (fadeout .3s linear forwards 5s)
             #:font-size .9em
+            #:font-weight 100
+            #:position relative
             #:margin-left 1em
             #:text-transform lowercase]
     [.flash.alert #:color ,@success-color-dark]
