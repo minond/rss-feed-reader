@@ -18,7 +18,8 @@
   (let* ([current-page (or (string->number (get-parameter 'page req)) 1)]
          [page-count (ceiling (/ (lookup (current-database-connection)
                                          (count-articles #:user-id (current-user-id)
-                                                         #:archived #f)) page-size))]
+                                                         #:archived #f))
+                                 page-size))]
          [offset (* (- current-page 1) page-size)]
          [articles (sequence->list
                     (in-entities (current-database-connection)
