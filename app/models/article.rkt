@@ -8,6 +8,7 @@
          make-article
          count-articles
          select-articles
+         select-articles-by-feed-id
          find-article-by-id
          find-article-by-link
          archive-article-by-id
@@ -44,6 +45,17 @@
       (where (and (= a.user-id ,user-id)
                   (= a.archived ,archived)
                   (= f.subscribed ,subscribed)))
+      (order-by ([date #:desc]))
+      (offset ,off)
+      (limit ,lim)))
+
+(define (select-articles-by-feed-id #:feed-id feed-id
+                                    #:user-id user-id
+                                    #:limit lim
+                                    #:offset [off 0])
+  (~> (from article #:as a)
+      (where (and (= a.user-id ,user-id)
+                  (= a.feed-id ,feed-id)))
       (order-by ([date #:desc]))
       (offset ,off)
       (limit ,lim)))
