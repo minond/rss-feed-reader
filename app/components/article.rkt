@@ -12,6 +12,7 @@
          (prefix-in : scribble/html/extra))
 
 (provide :article-full
+         :article-list
          :article-previews)
 
 (define (:article-full feed article)
@@ -23,6 +24,33 @@
      (:h4 (feed-title feed))
      (:time 'datetime: datetime humandate)
      (:p (:literal (strip-xml (article-content article)))))))
+
+(define (:article-list feed articles current-page page-count)
+  (list
+   (:spacer #:direction vertical #:size small)
+   (:table
+    (:thead
+     (:th)
+     (:th "Title")
+     (:th "Date")
+     (:th ""))
+    (:tbody (map :article-row articles)))
+    (:spacer #:direction horizontal #:size small)
+    (:pagination current-page page-count)))
+
+(define (:article-row article)
+  (let-values ([(route class) (if (article-archived article)
+                                  (values "/articles/~a/unarchive" "archived")
+                                  (values "/articles/~a/archive" "unarchived"))])
+    (:tr 'class: (string-join (list "article-row" class))
+         (:td 'class: "tc"
+              (:a 'href: (format route (article-id article))
+                  'class: (format "article-archive-toggle ~a" class)))
+         (:td (article-title article))
+         (:td 'class: "wsnw" (~t (article-date article) "MMMM d, yyyy"))
+         (:td 'class: "wsnw" (:a 'href: (article-link article)
+                                 'target: '_blank
+                                 "Visit page")))))
 
 (define (:article-previews articles current-page page-count)
   (if (empty? articles)
