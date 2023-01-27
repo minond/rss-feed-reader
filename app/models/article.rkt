@@ -7,8 +7,9 @@
 (provide (struct-out article)
          make-article
          count-articles
+         count-articles-by-feed
          select-articles
-         select-articles-by-feed-id
+         select-articles-by-feed
          find-article-by-id
          find-article-by-link
          archive-article-by-id
@@ -35,6 +36,14 @@
                   (= a.archived ,archived)
                   (= f.subscribed ,subscribed)))))
 
+(define (count-articles-by-feed #:feed-id feed-id
+                                #:user-id user-id)
+  (~> (from article #:as a)
+      (select (count a.id))
+      (join feed #:as f #:on (= f.id a.feed-id))
+      (where (and (= a.user-id ,user-id)
+                  (= a.feed-id ,feed-id)))))
+
 (define (select-articles #:user-id user-id
                          #:archived [archived #f]
                          #:subscribed [subscribed #t]
@@ -49,10 +58,10 @@
       (offset ,off)
       (limit ,lim)))
 
-(define (select-articles-by-feed-id #:feed-id feed-id
-                                    #:user-id user-id
-                                    #:limit lim
-                                    #:offset [off 0])
+(define (select-articles-by-feed #:feed-id feed-id
+                                 #:user-id user-id
+                                 #:limit lim
+                                 #:offset [off 0])
   (~> (from article #:as a)
       (where (and (= a.user-id ,user-id)
                   (= a.feed-id ,feed-id)))
