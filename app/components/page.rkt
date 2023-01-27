@@ -165,6 +165,7 @@
     [.spacer.horizontal.medium #:width 2em]
     [.spacer.horizontal.large #:width 4em]
     [.tc #:text-align center]
+    [.wsnw #:white-space nowrap]
 
     [.feed-subscription-toggle #:height .9em
                                #:width .9em

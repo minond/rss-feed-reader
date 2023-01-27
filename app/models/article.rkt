@@ -28,7 +28,7 @@
                         #:subscribed [subscribed #t])
   (~> (from article #:as a)
       (select (count a.id))
-      (join feed #:as f #:on (= f.id a.feed_id))
+      (join feed #:as f #:on (= f.id a.feed-id))
       (where (and (= a.user-id ,user-id)
                   (= a.archived ,archived)
                   (= f.subscribed ,subscribed)))))
@@ -39,7 +39,7 @@
                          #:limit lim
                          #:offset [off 0])
   (~> (from article #:as a)
-      (join feed #:as f #:on (= f.id a.feed_id))
+      (join feed #:as f #:on (= f.id a.feed-id))
       (where (and (= a.user-id ,user-id)
                   (= a.archived ,archived)
                   (= f.subscribed ,subscribed)))
