@@ -18,5 +18,5 @@ jobs:
           distribution: full
           variant: CS
           version: 8.7
-      - run: raco pkg install
+      - run: raco pkg install --auto
       - run: raco test test
