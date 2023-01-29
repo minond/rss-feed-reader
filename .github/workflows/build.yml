@@ -18,5 +18,13 @@ jobs:
           distribution: full
           variant: CS
           version: 8.7
-      - run: raco pkg install --auto
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/racket
+            ~/.local/share/racket
+          key: ${{ runner.os }}-racket-8.7
+
+      - run: raco pkg install --auto deta request gregor css-expr
       - run: raco test test
