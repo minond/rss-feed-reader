@@ -1,4 +1,4 @@
-#lang racket
+#lang racket/base
 
 (require "components/article.rkt"
          "components/feed.rkt"

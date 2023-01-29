@@ -1,4 +1,4 @@
-#lang racket
+#lang racket/base
 
 (require "app/servlet.rkt"
          "app/websocket.rkt")

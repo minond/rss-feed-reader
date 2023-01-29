@@ -1,6 +1,8 @@
-#lang racket
+#lang racket/base
 
-(require racket/random)
+(require racket/list
+         racket/sequence
+         racket/random)
 
 (provide random-string)
 

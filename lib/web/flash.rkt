@@ -1,8 +1,11 @@
-#lang racket
+#lang racket/base
 
-(require (for-syntax syntax/parse))
+(require
+  (for-syntax racket
+              syntax/parse))
 
-(require gregor
+(require racket/match
+         gregor
          "session.rkt")
 
 (provide current-flash

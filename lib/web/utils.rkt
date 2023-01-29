@@ -1,6 +1,7 @@
-#lang racket
+#lang racket/base
 
-(require json
+(require racket/string
+         json
          threading
          web-server/servlet
          (prefix-in : scribble/html/xml)

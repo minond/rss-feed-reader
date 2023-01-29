@@ -1,4 +1,4 @@
-#lang racket
+#lang racket/base
 
 (require "handlers/session.rkt"
          "handlers/article.rkt"

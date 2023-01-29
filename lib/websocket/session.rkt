@@ -1,4 +1,4 @@
-#lang racket
+#lang racket/base
 
 (require net/rfc6455/conn-api
          net/cookies/server

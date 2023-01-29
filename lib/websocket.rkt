@@ -1,4 +1,4 @@
-#lang racket
+#lang racket/base
 
 (require "websocket/session.rkt"
          "websocket/connection.rkt")

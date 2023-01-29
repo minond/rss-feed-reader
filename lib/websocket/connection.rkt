@@ -1,6 +1,8 @@
-#lang racket
+#lang racket/base
 
-(require json
+(require racket/match
+         racket/list
+         json
          net/rfc6455
          net/rfc6455/conn-api
          net/cookies/server

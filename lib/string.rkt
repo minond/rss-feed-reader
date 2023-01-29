@@ -1,6 +1,7 @@
-#lang racket
+#lang racket/base
 
-(require threading)
+(require racket/string
+         threading)
 
 (provide string-chop
          strip-xml

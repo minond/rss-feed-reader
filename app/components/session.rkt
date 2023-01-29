@@ -1,4 +1,4 @@
-#lang racket
+#lang racket/base
 
 (require (prefix-in : scribble/html/xml)
          (prefix-in : scribble/html/html)

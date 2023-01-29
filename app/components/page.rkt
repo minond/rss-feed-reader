@@ -1,6 +1,8 @@
-#lang racket
+#lang racket/base
 
-(require css-expr
+(require racket/string
+         racket/port
+         css-expr
          "../../lib/web/session.rkt"
          "../../lib/web/flash.rkt"
          (prefix-in : scribble/html/xml)

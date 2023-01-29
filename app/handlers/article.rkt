@@ -1,6 +1,8 @@
-#lang racket
+#lang racket/base
 
-(require db
+(require (except-in racket/list group-by)
+         racket/sequence
+         db
          deta
          "../../lib/web.rkt"
          "../parameters.rkt"

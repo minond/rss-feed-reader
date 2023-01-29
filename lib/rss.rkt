@@ -1,6 +1,9 @@
-#lang racket
+#lang racket/base
 
-(require xml
+(require racket/match
+         racket/string
+         racket/format
+         xml
          xml/path
          net/url-string
          request/param

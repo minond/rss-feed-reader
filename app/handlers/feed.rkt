@@ -1,6 +1,7 @@
-#lang racket
+#lang racket/base
 
-(require db
+(require racket/sequence
+         db
          deta
          "../../lib/web.rkt"
          "../../lib/crypto.rkt"

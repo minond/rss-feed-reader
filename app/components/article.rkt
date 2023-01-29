@@ -1,6 +1,8 @@
-#lang racket
+#lang racket/base
 
-(require gregor
+(require racket/string
+         racket/list
+         gregor
          "../models/article.rkt"
          "../models/feed.rkt"
          "../../lib/string.rkt"

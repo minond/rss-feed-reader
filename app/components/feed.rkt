@@ -1,6 +1,7 @@
-#lang racket
+#lang racket/base
 
-(require gregor
+(require racket/string
+         gregor
          (prefix-in : scribble/html/xml)
          (prefix-in : scribble/html/html)
          (prefix-in : scribble/html/extra)

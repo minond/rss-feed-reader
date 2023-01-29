@@ -1,9 +1,11 @@
-#lang racket
+#lang racket/base
 
-(require "../../lib/pair.rkt"
+(require racket/match
+         racket/list
          (prefix-in : scribble/html/xml)
          (prefix-in : scribble/html/html)
-         (prefix-in : scribble/html/extra))
+         (prefix-in : scribble/html/extra)
+         "../../lib/pair.rkt")
 
 (provide :pagination)
 
