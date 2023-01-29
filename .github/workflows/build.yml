@@ -26,5 +26,5 @@ jobs:
             ~/.local/share/racket
           key: ${{ runner.os }}-racket-8.7
 
-      - run: raco pkg install --auto deta request gregor css-expr
+      - run: raco pkg install --auto deta request gregor css-expr crypto
       - run: raco test test
