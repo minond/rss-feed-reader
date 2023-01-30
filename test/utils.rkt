@@ -15,13 +15,18 @@
 
 (provide current-response
          current-response-body
+         current-response-code
+         current-response-headers
+         current-response-header
          with-session
          with-app-request
          with-authenticated-app-request)
 
 (define current-session-cookie-header (make-parameter #f))
 (define current-response (make-parameter #f))
+(define current-response-headers (make-parameter #f))
 (define current-response-body (make-parameter #f))
+(define current-response-code (make-parameter #f))
 
 (define (make-session-cookie-header user-id)
   (header #"Cookie"
@@ -57,7 +62,9 @@
               [op (open-output-string)])
          ((response-output res) op)
          (parameterize ([current-response res]
-                        [current-response-body (get-output-string op)])
+                        [current-response-body (get-output-string op)]
+                        [current-response-code (response-code res)]
+                        [current-response-headers (response-headers res)])
            e ...))]))
 
 (define-syntax (with-authenticated-app-request stx)
@@ -70,3 +77,8 @@
      #'(with-session #:user-id (~? user-id 123)
          (with-app-request url (syntax->datum #'((#:kw kv) ...))
            e ...))]))
+
+(define (current-response-header field)
+  (let ([header (headers-assq field (current-response-headers))])
+    (and header
+         (header-value header))))

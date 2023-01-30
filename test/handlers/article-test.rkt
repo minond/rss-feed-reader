@@ -13,6 +13,16 @@
    "Article endpoints"
 
    (test-case
+    "Unauthenticated requests are redirected to login page"
+    (with-app-request "/articles"
+      (check-equal?
+             (current-response-code)
+             301)
+      (check-equal?
+             (current-response-header #"Location")
+             #"/sessions/new")))
+
+   (test-case
     "Zero state in articles view directs user to subscribe to a new feed"
     (with-authenticated-app-request "/articles"
       (check string-contains?
