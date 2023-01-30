@@ -14,16 +14,7 @@
 
    (test-case
     "Zero state in articles view directs user to subscribe to a new feed"
-    (with-authenticated-request "/articles"
-      (lambda (res op)
-        (check string-contains?
-               (get-output-string op)
-               "There are no articles to show at this time."))))
-
-   (test-case
-    "Zero state in articles view directs user to subscribe to a new feed"
-    (with-authenticated-request "/articles"
-      (lambda (res op)
-        (check string-contains?
-               (get-output-string op)
-               "There are no articles to show at this time."))))))
+    (with-authenticated-app-request "/articles"
+      (check string-contains?
+             (current-response-body)
+             "There are no articles to show at this time.")))))

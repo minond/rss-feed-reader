@@ -13,29 +13,60 @@
          "../app/dispatch.rkt"
          "../lib/web/session.rkt")
 
-(provide make-authenticated-request
-         with-authenticated-request)
+(provide current-response
+         current-response-body
+         with-session
+         with-app-request
+         with-authenticated-app-request)
 
-(define (make-authenticated-request #:url url
-                                    #:method [method #"GET"]
-                                    #:post-data [post-data #f]
-                                    #:user-id [user-id 123])
-  (make-request method (string->url url)
-                (list (header #"Cookie"
-                              (cookie->set-cookie-header
-                               (create-session-cookie #:user-id user-id))))
-                (delay empty) post-data "1.2.3.4" 80 "4.3.2.1"))
+(define current-session-cookie-header (make-parameter #f))
+(define current-response (make-parameter #f))
+(define current-response-body (make-parameter #f))
 
-(define with-authenticated-request
-  (make-keyword-procedure
-   (lambda (kws kw-args . args)
-     (let* ([url (car args)]
-            [f (last args)]
-            [req-args (drop-right (cdr args) 1)]
-            [req (keyword-apply make-authenticated-request
-                                #:url url
-                                kws kw-args req-args)]
-            [res (app-dispatch req)]
-            [op (open-output-string)])
-       ((response-output res) op)
-       (f res op)))))
+(define (make-session-cookie-header user-id)
+  (header #"Cookie"
+          (cookie->set-cookie-header
+           (create-session-cookie #:user-id user-id))))
+
+(define-syntax (with-session stx)
+  (syntax-parse stx
+    [(with-session (~optional (~seq #:user-id user-id))
+       e ...)
+     #'(let ([cookie-header (make-session-cookie-header (~? user-id 123))])
+         (parameterize ([current-session-cookie-header cookie-header])
+           e ...))]))
+
+(define (make-app-request #:url url
+                          #:method [method #"GET"]
+                          #:post-data [post-data #f])
+  (let ([req (make-request method (string->url url)
+                           (filter header? (list (current-session-cookie-header)))
+                           (delay empty) post-data "1.2.3.4" 80 "4.3.2.1")])
+    (app-dispatch req)))
+
+(define-syntax (with-app-request stx)
+  (syntax-parse stx
+    [(with-app-request url:expr
+       (~seq (~seq kw:keyword kv:expr) ...)
+       e ...)
+     #'(let* ([res (keyword-apply make-app-request
+                                  #:url url
+                                  (syntax->datum #'(kw ...))
+                                  (syntax->datum #'(kv ...))
+                                  empty)]
+              [op (open-output-string)])
+         ((response-output res) op)
+         (parameterize ([current-response res]
+                        [current-response-body (get-output-string op)])
+           e ...))]))
+
+(define-syntax (with-authenticated-app-request stx)
+  (syntax-parse stx
+    [(with-authenticated-app-request
+         url:expr
+       (~optional (~seq #:user-id user-id))
+       (~seq (~seq kw:keyword kv:expr) ...)
+       e ...)
+     #'(with-session #:user-id (~? user-id 123)
+         (with-app-request url (syntax->datum #'((#:kw kv) ...))
+           e ...))]))
