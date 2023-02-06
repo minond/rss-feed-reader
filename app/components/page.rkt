@@ -167,6 +167,8 @@ socket.addEventListener('message', (event) => {
      [time .action
            #:font-size 0.75em
            #:color ,@text-color-light]]
+    [iframe #:max-width 100%
+            #:max-height 90vh]
 
     [@keyframes
      fadein
