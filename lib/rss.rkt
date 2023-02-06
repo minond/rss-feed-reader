@@ -90,6 +90,7 @@
                    (parse-datetime str format)))])
     (or (parse "eee, d MMM y HH:mm:ss Z")
         (parse "eee,  d MMM y HH:mm:ss Z")
+        (parse "d MMM y")
         (parse "eee, d MMM y HH:mm:ss 'GMT'")
         (parse "y-M-d HH:mm:ss"))))
 
