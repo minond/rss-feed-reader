@@ -40,7 +40,7 @@
          [articles (let ([title null]
                          [link null]
                          [date null]
-                         [content null])
+                         [content ""])
                      (map (lambda (item)
                             (for ([part item] #:when (pair? part))
                               (let ([tag (car part)]
@@ -67,7 +67,7 @@
          [articles (let ([title null]
                          [link null]
                          [date null]
-                         [content null])
+                         [content ""])
                      (map (lambda (item)
                             (for ([part item] #:when (pair? part))
                               (let ([tag (car part)])

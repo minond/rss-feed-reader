@@ -23,7 +23,7 @@
    [link string/f #:contract non-empty-string?]
    [title string/f #:contract non-empty-string?]
    [date datetime/f]
-   [content string/f #:contract non-empty-string?]
+   [content string/f]
    [(archived #f) boolean/f]
    [(created-at (now/utc)) datetime/f]))
 
