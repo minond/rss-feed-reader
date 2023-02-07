@@ -13,7 +13,7 @@
 
 (define (/users/new req)
   (let* ([email (get-parameter 'email req)])
-    (render :page (:user-form email))))
+    (render (:user-form email))))
 
 (define (/users/create req)
   (let* ([email (get-parameter 'email req)]

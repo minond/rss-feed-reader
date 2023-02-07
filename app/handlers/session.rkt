@@ -14,7 +14,7 @@
 
 (define (/sessions/new req)
   (let* ([email (get-parameter 'email req)])
-    (render :page (:login-form email))))
+    (render (:login-form email))))
 
 (define (/sessions/create req)
   (let* ([email (get-parameter 'email req)]

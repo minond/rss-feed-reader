@@ -23,10 +23,10 @@
   (let ([feed-stats (sequence->list
                      (in-entities (current-database-connection)
                                   (select-feed-stats #:user-id (current-user-id))))])
-    (render :page (:feed-list feed-stats))))
+    (render (:feed-list feed-stats))))
 
 (define (/feeds/new req)
-  (render :page (:feed-form)))
+  (render (:feed-form)))
 
 (define (/feeds/create req)
   (let* ([rss (get-binding 'rss req)]
@@ -67,4 +67,4 @@
                                                           #:user-id (current-user-id)
                                                           #:limit page-size
                                                           #:offset offset)))])
-    (render :page (:article-list feed articles current-page page-count))))
+    (render (:article-list feed articles current-page page-count))))

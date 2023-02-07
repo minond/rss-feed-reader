@@ -1,6 +1,7 @@
 #lang racket/base
 
-(require racket/string
+(require racket/function
+         racket/string
          json
          threading
          web-server/servlet
@@ -9,13 +10,16 @@
          "session.rkt"
          "flash.rkt")
 
-(provide get-parameter
+(provide default-layout
+         get-parameter
          get-binding
          authenticated-route
          route
          render
          redirect
          redirect-back)
+
+(define default-layout (make-parameter identity))
 
 (define (get-parameter key req #:default [default ""])
   (get-binding key req #:default default))
@@ -46,7 +50,7 @@
                                         (session-flash session))])
        (apply handler (cons req args)))]))
 
-(define (render :page content)
+(define (render content #:layout [layout (default-layout)])
   (let* ([request (current-request)]
          [session (current-session)]
          [user-id (current-user-id)]
@@ -64,7 +68,7 @@
                       [current-flash flash])
          (display (if json?
                       (jsexpr->string (hash 'html (:xml->string content)))
-                      (:page content)) op))))))
+                      (layout content)) op))))))
 
 (define (wants-json? req)
   (let ([accept (assq 'accept (request-headers req))])

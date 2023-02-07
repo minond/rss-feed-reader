@@ -29,7 +29,7 @@
                                                   #:archived #f
                                                   #:limit page-size
                                                   #:offset offset)))])
-    (render :page (:article-previews articles current-page page-count))))
+    (render (:article-previews articles current-page page-count))))
 
 (define (/arcticles/<id>/show req id)
   (let* ([article (lookup (current-database-connection)
@@ -38,7 +38,7 @@
          [feed (lookup (current-database-connection)
                        (find-feed-by-id #:id (article-feed-id article)
                                         #:user-id (current-user-id)))])
-    (render :page (:article-full feed article))))
+    (render (:article-full feed article))))
 
 (define (/articles/<id>/archive req id)
   (query (current-database-connection) (archive-article-by-id #:id id

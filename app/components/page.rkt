@@ -5,11 +5,14 @@
          css-expr
          "../../lib/web/session.rkt"
          "../../lib/web/flash.rkt"
+         "../../lib/web/utils.rkt"
          (prefix-in : scribble/html/xml)
          (prefix-in : scribble/html/html)
          (prefix-in : scribble/html/extra))
 
 (provide :page)
+
+(default-layout :page)
 
 (define (:page content)
   (:xml->string
