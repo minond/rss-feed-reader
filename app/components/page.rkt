@@ -177,6 +177,10 @@ socket.addEventListener('message', (event) => {
       #:max-height 90vh]
      [pre #:overflow scroll]]
 
+    [.system-error #:color ,@failure-color-dark
+                   #:text-align center
+                   #:font-size 1.25em]
+
     [@keyframes
      fadein
      [from #:opacity 0]

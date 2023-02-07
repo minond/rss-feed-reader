@@ -6,6 +6,7 @@
          threading
          web-server/servlet
          (prefix-in : scribble/html/xml)
+         (prefix-in : scribble/html/html)
          "../pair.rkt"
          "session.rkt"
          "flash.rkt")
@@ -48,9 +49,14 @@
                                           (session-user-id session))]
                     [current-flash (and (session? session)
                                         (session-flash session))])
-       (apply handler (cons req args)))]))
+       (with-handlers ([exn:fail? (lambda (e)
+                                    (printf "[ERROR] ~a\n" e)
+                                    (render #:code 500
+                                            (:p 'class: "system-error"
+                                                "There was an error handling your request at this time. We're looking into this!")))])
+         (apply handler (cons req args))))]))
 
-(define (render content #:layout [layout (default-layout)])
+(define (render content #:layout [layout (default-layout)] #:code [code 200])
   (let* ([request (current-request)]
          [session (current-session)]
          [user-id (current-user-id)]
@@ -60,6 +66,7 @@
                            #"application/json; charset=utf-8"
                            #"text/html; charset=utf-8")])
     (response/output
+     #:code code
      #:headers (list (header #"Content-Type" content-type))
      (lambda (op)
        (parameterize ([current-request request]
