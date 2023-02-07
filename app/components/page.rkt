@@ -12,8 +12,6 @@
 
 (provide :page)
 
-(default-layout :page)
-
 (define (:page content)
   (:xml->string
    (list (:doctype 'html)
@@ -43,6 +41,8 @@
             (:div 'class: "separator")
             (:main content)
             (:script/inline 'type: "text/javascript" js)))))))
+
+(default-layout :page)
 
 (define (:flash kind text)
   (:div 'class: (format "flash ~a" kind)
