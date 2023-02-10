@@ -6,16 +6,18 @@
          "../../lib/web.rkt"
          "../../lib/crypto.rkt"
          "../parameters.rkt"
+         "../commands.rkt"
          "../components.rkt"
          "../models.rkt"
-         "../workers/feed-download.rkt")
+         "../workers.rkt")
 
 (provide /feeds
          /feeds/new
          /feeds/create
          /feeds/<id>/subscribe
          /feeds/<id>/unsubscribe
-         /feeds/<id>/articles)
+         /feeds/<id>/articles
+         /feeds/<id>/sync)
 
 (define page-size 10)
 
@@ -34,7 +36,8 @@
                          (find-feed-by-rss #:user-id (current-user-id)
                                            #:rss rss))])
     (unless exists
-      (schedule-feed-download rss (current-user-id) (session-key (current-session))))
+      (schedule (create-feed (current-user-id) rss)
+                (session-key (current-session))))
     (with-flash #:alert (and (not exists) "Downloading feed data and articles.")
       #:notice (and exists "This feed already exists.")
       (redirect "/articles"))))
@@ -68,3 +71,9 @@
                                                           #:limit page-size
                                                           #:offset offset)))])
     (render (:article-list feed articles current-page page-count))))
+
+(define (/feeds/<id>/sync req id)
+  (schedule (update-feed (current-user-id) id)
+            (session-key (current-session)))
+  (with-flash #:alert "Syncing feed"
+    (redirect-back)))

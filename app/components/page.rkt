@@ -63,8 +63,8 @@ socket.addEventListener('message', (event) => {
   const msg = JSON.parse(event.data)
 
   switch (msg.notification) {
-    case 'feed-added':
-      fetch('/articles', { headers: { Accept: 'application/json' } })
+    case 'feed-update':
+      fetch(location.pathname, { headers: { Accept: 'application/json' } })
         .then((res) =>
           res.json())
         .then((res) =>
