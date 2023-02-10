@@ -40,7 +40,7 @@
                 (session-key (current-session))))
     (with-flash #:alert (and (not exists) "Downloading feed data and articles.")
       #:notice (and exists "This feed already exists.")
-      (redirect "/articles"))))
+      (redirect (if exists "/articles" "/articles?scheduled=1")))))
 
 (define (/feeds/<id>/subscribe req id)
   (query (current-database-connection) (subscribe-to-feed #:id id

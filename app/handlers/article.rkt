@@ -17,7 +17,8 @@
 (define page-size 10)
 
 (define (/articles req)
-  (let* ([current-page (or (string->number (get-parameter 'page req)) 1)]
+  (let* ([scheduled (equal? "1" (get-parameter 'scheduled req))]
+         [current-page (or (string->number (get-parameter 'page req)) 1)]
          [page-count (ceiling (/ (lookup (current-database-connection)
                                          (count-articles #:user-id (current-user-id)
                                                          #:archived #f))
@@ -29,7 +30,7 @@
                                                   #:archived #f
                                                   #:limit page-size
                                                   #:offset offset)))])
-    (render (:article-previews articles current-page page-count))))
+    (render (:article-previews articles current-page page-count scheduled))))
 
 (define (/arcticles/<id>/show req id)
   (let* ([article (lookup (current-database-connection)

@@ -1,6 +1,7 @@
 #lang racket/base
 
 (require racket/string
+         racket/match
          racket/list
          gregor
          "../models/article.rkt"
@@ -56,18 +57,26 @@
                                  'target: '_blank
                                  "Visit page")))))
 
-(define (:article-previews articles current-page page-count)
-  (if (empty? articles)
-      (list
-       (:spacer #:direction horizontal
-                #:size large)
-       (:p 'class: "tc"
-           "There are no articles to show at this time. Use the form below to
+(define (:article-previews articles current-page page-count scheduled)
+  (match (cons (empty? articles) scheduled)
+    [(cons #t #t)
+     (list
+      (:spacer #:direction horizontal
+               #:size large)
+      (:p 'class: "tc"
+          "We're getting articles for you, hold tight!"))]
+    [(cons #t #f)
+     (list
+      (:spacer #:direction horizontal
+               #:size large)
+      (:p 'class: "tc"
+          "There are no articles to show at this time. Use the form below to
            subscribe to a feed.")
-       (:feed-form))
-      (list
-       (map :article-preview articles)
-       (:pagination current-page page-count))))
+      (:feed-form))]
+    [else
+     (list
+      (map :article-preview articles)
+      (:pagination current-page page-count))]))
 
 (define (:article-preview article)
   (let ([datetime (~t (article-date article) "y-M-d HH:mm:ss")]
