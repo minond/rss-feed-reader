@@ -9,5 +9,6 @@
 
 (start/servlet)
 
+(clear-connections)
 (stop/ws)
 (stop/worker)

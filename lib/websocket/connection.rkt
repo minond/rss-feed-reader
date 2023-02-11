@@ -11,12 +11,17 @@
          "session.rkt")
 
 (provide lookup-connections
+         clear-connections
          ws-send
          authenticated-ping-pong)
 
 (define connections (make-hash))
+
 (define (lookup-connections key)
   (hash-ref connections key '()))
+
+(define (clear-connections)
+  (hash-clear! connections))
 
 (define (ws-send session-key message)
   (for ([ws-conn (lookup-connections session-key)])

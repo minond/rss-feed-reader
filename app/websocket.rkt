@@ -8,7 +8,8 @@
          "../lib/websocket.rkt")
 
 (provide start/ws
-         ws-send/feed-update)
+         ws-send/feed-update
+         clear-connections)
 
 (define (start/ws)
   (printf "[INFO] starting websocket server\n")
