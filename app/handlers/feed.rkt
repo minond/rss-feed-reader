@@ -19,7 +19,7 @@
          /feeds/<id>/articles
          /feeds/<id>/sync)
 
-(define page-size 10)
+(define page-size 50)
 
 (define (/feeds req)
   (let ([feed-stats (sequence->list
