@@ -1,8 +1,10 @@
 #lang racket/base
 
-(require racket/match
+(require racket/function
+         racket/match
          racket/exn
          deta
+         gregor
          "../parameters.rkt"
          "../models.rkt"
          (prefix-in rss: "../../lib/rss.rkt"))
@@ -19,7 +21,11 @@
   (define-values (saved-feed remote-feed)
     (find-or-create-feed cmd))
 
-  (create-articles-for-feed saved-feed remote-feed))
+  (update-one! (current-database-connection)
+               (update-feed-last-sync-attempted-at saved-feed (const (now/utc))))
+  (create-articles-for-feed saved-feed remote-feed)
+  (update-one! (current-database-connection)
+               (update-feed-last-sync-completed-at saved-feed (const (now/utc)))))
 
 (define (find-or-create-feed cmd)
   (match cmd
