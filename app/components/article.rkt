@@ -36,7 +36,7 @@
     (:thead
      (:th)
      (:th "Title")
-     (:th "Date")
+     (:th 'class: "wsnw" "Added on")
      (:th ""))
     (:tbody (map :article-row articles)))
    (:spacer #:direction horizontal #:size small)
