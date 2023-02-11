@@ -1,6 +1,7 @@
 #lang racket/base
 
 (require racket/string
+         db
          gregor
          (prefix-in : scribble/html/xml)
          (prefix-in : scribble/html/html)
@@ -21,7 +22,7 @@
      (:th "Articles")
      (:th "Archived")
      (:th 'class: "wsnw" "Subscribed on")
-     (:th 'class: "wsnw" "Synchronized on ")
+     (:th 'class: "wsnw" "Last update")
      (:th "")
      (:th ""))
     (:tbody (map :feed-row feed-stats)))))
@@ -38,8 +39,10 @@
                   (feed-stats-title feed)))
          (:td (feed-stats-total-count feed))
          (:td (feed-stats-archived-count feed))
-         (:td 'class: "wsnw" (~t (feed-stats-last-sync-completed-at feed) "MMMM d, yyyy"))
-         (:td 'class: "wsnw" (~t (feed-stats-created-at feed) "MMMM d, yyyy"))
+         (:td 'class: "wsnw" (~t (feed-stats-created-at feed) "M/d/y"))
+         (:td 'class: "wsnw" (if (sql-null? (feed-stats-last-sync-completed-at feed))
+                                 ""
+                                 (~t (feed-stats-last-sync-completed-at feed) "M/d/y")))
          (:td (:a 'href: (format "/feeds/~a/sync" (feed-stats-id feed))
                   "Sync"))
          (:td (:a 'href: (feed-stats-link feed)

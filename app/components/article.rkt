@@ -52,7 +52,7 @@
                   'class: (format "article-archive-toggle ~a" class)))
          (:td (:a 'href: (format "/articles/~a" (article-id article))
                   (article-title article)))
-         (:td 'class: "wsnw" (~t (article-date article) "MMMM d, yyyy"))
+         (:td 'class: "wsnw" (~t (article-date article) "M/d/y"))
          (:td 'class: "wsnw" (:a 'href: (article-link article)
                                  'target: '_blank
                                  "Visit page")))))
