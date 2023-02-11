@@ -11,6 +11,7 @@
          ws-send/feed-update)
 
 (define (start/ws)
+  (printf "[INFO] starting websocket server\n")
   (ws-serve authenticated-ping-pong
             #:port 8082))
 

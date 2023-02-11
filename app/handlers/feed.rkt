@@ -36,8 +36,8 @@
                          (find-feed-by-rss #:user-id (current-user-id)
                                            #:rss rss))])
     (unless exists
-      (schedule (create-feed (current-user-id) rss)
-                (session-key (current-session))))
+      (schedule-user-feed-sync (create-feed (current-user-id) rss)
+                               (session-key (current-session))))
     (with-flash #:alert (and (not exists) "Downloading feed data and articles.")
       #:notice (and exists "This feed already exists.")
       (redirect (if exists "/articles" "/articles?scheduled=1")))))
@@ -73,7 +73,7 @@
     (render (:article-list feed articles current-page page-count))))
 
 (define (/feeds/<id>/sync req id)
-  (schedule (update-feed (current-user-id) id)
-            (session-key (current-session)))
+  (schedule-user-feed-sync (update-feed (current-user-id) id)
+                           (session-key (current-session)))
   (with-flash #:alert "Syncing feed"
     (redirect-back)))
