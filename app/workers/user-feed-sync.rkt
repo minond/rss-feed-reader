@@ -9,7 +9,6 @@
          make-user-feed-sync-worker)
 
 (define cmd-ch (make-async-channel))
-(define exit-ch (make-channel))
 
 (define (schedule-user-feed-sync cmd session-key)
   (async-channel-put cmd-ch (list cmd session-key)))
@@ -22,7 +21,7 @@
          (printf "[INFO] starting user-feed-sync-worker\n")
          (let loop ()
            (sync
-            (handle-evt exit-ch
+            (handle-evt (thread-receive-evt)
                         (lambda (_)
                           (printf "[INFO] stopping user-feed-sync-worker\n")))
             (handle-evt cmd-ch
@@ -35,4 +34,4 @@
                           (loop)))))))))
 
   (lambda ()
-    (channel-put exit-ch 'stop)))
+    (thread-send thd 'stop)))
