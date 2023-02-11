@@ -5,8 +5,8 @@
          gregor
          deta)
 
-(provide (struct-out feed)
-         (struct-out feed-stats)
+(provide (schema-out feed)
+         (schema-out feed-stats)
          make-feed
          select-feed-stats
          find-feed-by-id
@@ -21,6 +21,8 @@
    [link string/f #:contract non-empty-string?]
    [title string/f #:contract non-empty-string?]
    [(subscribed #t) boolean/f]
+   [last-sync-attempted-at datetime/f #:nullable]
+   [last-sync-completed-at datetime/f #:nullable]
    [(created-at (now/utc)) datetime/f]))
 
 (define-schema feed-stats
@@ -29,6 +31,7 @@
    [title string/f]
    [link string/f]
    [subscribed boolean/f]
+   [last-sync-completed-at datetime/f #:nullable]
    [created-at datetime/f]
    [total-count integer/f]
    [archived-count integer/f]
@@ -36,7 +39,7 @@
 
 (define (select-feed-stats #:user-id user-id)
   (~> (from feed #:as f)
-      (select f.id f.title f.link f.subscribed f.created-at
+      (select f.id f.title f.link f.subscribed f.last-sync-completed-at f.created-at
               (count a.id)
               (sum (iif (= a.archived #t) 1 0))
               (sum (iif (= a.archived #f) 1 0)))
