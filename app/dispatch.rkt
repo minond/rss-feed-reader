@@ -7,6 +7,9 @@
 
 (provide app-dispatch app-url)
 
+(define (/index req)
+  (redirect "/articles"))
+
 (define-values (app-dispatch app-url)
   (dispatch-rules
    [("sessions" "new") (route /sessions/new)]
@@ -30,4 +33,5 @@
    [("articles" (integer-arg) "archive") (authenticated-route /articles/<id>/archive)]
    [("articles" (integer-arg) "unarchive") #:method "put" (authenticated-route /articles/<id>/unarchive)]
    [("articles" (integer-arg) "unarchive") (authenticated-route /articles/<id>/unarchive)]
-   [else (authenticated-route /articles)]))
+   [("") (authenticated-route /index)]
+   [else (authenticated-route /not-found)]))

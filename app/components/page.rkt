@@ -179,7 +179,8 @@ socket.addEventListener('message', (event) => {
 
     [.system-error #:color ,@failure-color-dark
                    #:text-align center
-                   #:font-size 1.25em]
+                   #:font-size 1.25em
+                   #:margin-top 2em]
 
     [@keyframes
      fadein

@@ -18,7 +18,8 @@
          route
          render
          redirect
-         redirect-back)
+         redirect-back
+         /not-found)
 
 (define default-layout (make-parameter identity))
 
@@ -37,6 +38,14 @@
 
 (define ((route handler) req . args)
   (apply-handler handler (lookup-session req) req args))
+
+(define (/not-found req)
+  (printf "[WARN] not found: ~a ~a\n"
+          (request-method req)
+          (url->string (request-uri req)))
+  (render #:code 404
+          (:p 'class: "system-error"
+              "Page not found.")))
 
 (define apply-handler
   (case-lambda
