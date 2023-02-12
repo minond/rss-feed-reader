@@ -1,6 +1,7 @@
 #lang racket/base
 
 (require racket/function
+         racket/sequence
          racket/match
          racket/exn
          deta
@@ -11,13 +12,30 @@
 
 (provide run
          create-feed
-         update-feed)
+         update-feed
+         update-feeds)
 
 (struct create-feed (user-id rss) #:transparent)
 (struct update-feed (user-id feed-id) #:transparent)
+(struct update-feeds () #:transparent)
 
 (define (run cmd)
   (printf "[INFO] processing ~a\n" cmd)
+  (match cmd
+    [(create-feed _ _) (handle-create-or-update-feed cmd)]
+    [(update-feed _ _) (handle-create-or-update-feed cmd)]
+    [(update-feeds) (handle-update-feeds cmd)]))
+
+(define (handle-update-feeds cmd)
+  (let ([feeds (sequence->list
+                (in-entities (current-database-connection)
+                             (select-feeds-in-need-of-sync #:limit 5)))])
+    (for/list ([feed feeds])
+      (update-one! (current-database-connection)
+                   (update-feed-last-sync-attempted-at feed (const (now/utc))))
+      (run (update-feed (feed-user-id feed) (feed-id feed))))))
+
+(define (handle-create-or-update-feed cmd)
   (define-values (saved-feed remote-feed)
     (find-or-create-feed cmd))
 

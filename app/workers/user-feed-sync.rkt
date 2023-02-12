@@ -6,8 +6,10 @@
          "../websocket.rkt")
 
 (provide schedule-user-feed-sync
-         make-user-feed-sync-worker)
+         make-user-feed-sync-worker
+         make-user-background-sync-worker)
 
+(define user-sync-time-ms 60000)
 (define cmd-ch (make-async-channel))
 
 (define (schedule-user-feed-sync cmd session-key)
@@ -31,6 +33,25 @@
                                                        (printf "[ERROR] ~a\n" e))])
                             (run cmd)
                             (ws-send/feed-update session-key))
+                          (loop)))))))))
+
+  (lambda ()
+    (thread-send thd 'stop)))
+
+(define (make-user-background-sync-worker [cust (make-custodian)])
+  (define thd
+    (parameterize ([current-custodian cust])
+      (thread
+       (lambda ()
+         (printf "[INFO] starting user-background-sync-worker\n")
+         (let loop ()
+           (sync
+            (handle-evt (thread-receive-evt)
+                        (lambda (-)
+                          (printf "[INFO] stopping user-background-sync-worker\n")))
+            (handle-evt (alarm-evt (+ (current-inexact-milliseconds) user-sync-time-ms))
+                        (lambda (_)
+                          (run (update-feeds))
                           (loop)))))))))
 
   (lambda ()

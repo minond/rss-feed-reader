@@ -9,6 +9,7 @@
          (schema-out feed-stats)
          make-feed
          select-feed-stats
+         select-feeds-in-need-of-sync
          find-feed-by-id
          find-feed-by-rss
          subscribe-to-feed
@@ -48,6 +49,16 @@
       (group-by f.id f.title)
       (order-by ([f.title]))
       (project-onto feed-stats-schema)))
+
+(define (select-feeds-in-need-of-sync #:older-than [older-than (-hours (now/utc) 12)]
+                                      #:limit [lim 10])
+  (~> (from feed #:as f)
+      (where (and (= f.subscribed #t)
+                  (or
+                   (< f.last-sync-attempted-at ,(~t older-than "yyyy-MM-dd'T'HH:mm:ss"))
+                   (is f.last-sync-attempted-at null))))
+      (order-by ([f.last-sync-attempted-at]))
+      (limit ,lim)))
 
 (define (find-feed-by-id #:id id #:user-id user-id)
   (~> (from feed #:as f)

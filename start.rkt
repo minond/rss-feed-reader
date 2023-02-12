@@ -4,11 +4,13 @@
          "app/websocket.rkt"
          "app/workers.rkt")
 
-(define stop/worker (make-user-feed-sync-worker))
+(define stop/feed-worker (make-user-feed-sync-worker))
+(define stop/user-worker (make-user-background-sync-worker))
 (define stop/ws (start/ws))
 
 (start/servlet)
 
 (clear-connections)
 (stop/ws)
-(stop/worker)
+(stop/feed-worker)
+(stop/user-worker)
