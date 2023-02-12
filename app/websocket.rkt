@@ -12,7 +12,7 @@
          clear-connections)
 
 (define (start/ws)
-  (printf "[INFO] starting websocket server\n")
+  (log-info "starting websocket server")
   (ws-serve authenticated-ping-pong
             #:port 8082))
 

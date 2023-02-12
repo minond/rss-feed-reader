@@ -13,14 +13,14 @@
     (parameterize ([current-custodian cust])
       (thread
        (lambda ()
-         (printf "[INFO] starting ~a\n" name)
+         (log-info "starting ~a" name)
          (let loop ()
            (apply sync
                   (filter identity
                           (list
                            (handle-evt (thread-receive-evt)
-                                       (lambda (-)
-                                         (printf "[INFO] stopping ~a\n" name)))
+                                       (lambda (_)
+                                         (log-info "stopping ~a" name)))
 
                            (cond
                              [ch

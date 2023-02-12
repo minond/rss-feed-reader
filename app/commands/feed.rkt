@@ -20,7 +20,7 @@
 (struct update-feeds () #:transparent)
 
 (define (run cmd)
-  (printf "[INFO] processing ~a\n" cmd)
+  (log-info "processing ~a" cmd)
   (match cmd
     [(create-feed _ _) (handle-create-or-update-feed cmd)]
     [(update-feed _ _) (handle-create-or-update-feed cmd)]
@@ -64,7 +64,7 @@
        (values saved-feed remote-feed))]))
 
 (define (create-articles-for-feed saved-feed remote-feed)
-  (printf "[INFO] saving new article records for ~a\n" (feed-rss saved-feed))
+  (log-info "saving new article records for ~a" (feed-rss saved-feed))
 
   (let ([user-id (feed-user-id saved-feed)]
         [feed_id (feed-id saved-feed)])
@@ -73,7 +73,7 @@
       (unless (lookup (current-database-connection)
                       (find-article-by-link #:user-id user-id
                                             #:link link))
-        (printf "[INFO] saving article record for ~a\n" (rss:article-link article))
+        (log-info "saving article record for ~a" (rss:article-link article))
         (insert-one! (current-database-connection)
                      (make-article #:user-id user-id
                                    #:feed-id feed_id
@@ -82,4 +82,4 @@
                                    #:date (rss:article-date article)
                                    #:content (rss:article-content article))))))
 
-  (printf "[INFO] done saving article records for ~a\n" (feed-rss saved-feed)))
+  (log-info "done saving article records for ~a" (feed-rss saved-feed)))

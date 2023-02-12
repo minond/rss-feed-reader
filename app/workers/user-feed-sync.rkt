@@ -21,7 +21,7 @@
                #:channel cmd-ch
                #:handler (lambda (args)
                            (match-define (list cmd session-key) args)
-                           (with-handlers ([exn:fail? (lambda (e) (printf "[ERROR] ~a\n" e))])
+                           (with-handlers ([exn:fail? (lambda (e) (log-error e))])
                              (run cmd)
                              (ws-send/feed-update session-key)))))
 

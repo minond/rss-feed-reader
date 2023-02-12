@@ -40,9 +40,9 @@
   (apply-handler handler (lookup-session req) req args))
 
 (define (/not-found req)
-  (printf "[WARN] not found: ~a ~a\n"
-          (request-method req)
-          (url->string (request-uri req)))
+  (log-warning "not found: ~a ~a"
+               (request-method req)
+               (url->string (request-uri req)))
   (render #:code 404
           (:p 'class: "system-error"
               "Page not found.")))
@@ -59,7 +59,7 @@
                     [current-flash (and (session? session)
                                         (session-flash session))])
        (with-handlers ([exn:fail? (lambda (e)
-                                    (printf "[ERROR] ~a\n" e)
+                                    (log-error e)
                                     (render #:code 500
                                             (:p 'class: "system-error"
                                                 "There was an error handling your request at this time. We're looking into this!")))])
