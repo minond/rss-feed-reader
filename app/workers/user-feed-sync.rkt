@@ -3,7 +3,8 @@
 (require racket/match
          racket/async-channel
          "../commands.rkt"
-         "../websocket.rkt")
+         "../websocket.rkt"
+         "../../lib/worker.rkt")
 
 (provide schedule-user-feed-sync
          make-user-feed-sync-worker
@@ -15,44 +16,16 @@
 (define (schedule-user-feed-sync cmd session-key)
   (async-channel-put cmd-ch (list cmd session-key)))
 
-(define (make-user-feed-sync-worker [cust (make-custodian)])
-  (define thd
-    (parameterize ([current-custodian cust])
-      (thread
-       (lambda ()
-         (printf "[INFO] starting user-feed-sync-worker\n")
-         (let loop ()
-           (sync
-            (handle-evt (thread-receive-evt)
-                        (lambda (_)
-                          (printf "[INFO] stopping user-feed-sync-worker\n")))
-            (handle-evt cmd-ch
-                        (lambda (args)
-                          (match-define (list cmd session-key) args)
-                          (with-handlers ([exn:fail? (lambda (e)
-                                                       (printf "[ERROR] ~a\n" e))])
-                            (run cmd)
-                            (ws-send/feed-update session-key))
-                          (loop)))))))))
+(define (make-user-feed-sync-worker)
+  (make-worker #:name 'user-feed-sync-worker
+               #:channel cmd-ch
+               #:handler (lambda (args)
+                           (match-define (list cmd session-key) args)
+                           (with-handlers ([exn:fail? (lambda (e) (printf "[ERROR] ~a\n" e))])
+                             (run cmd)
+                             (ws-send/feed-update session-key)))))
 
-  (lambda ()
-    (thread-send thd 'stop)))
-
-(define (make-user-background-sync-worker [cust (make-custodian)])
-  (define thd
-    (parameterize ([current-custodian cust])
-      (thread
-       (lambda ()
-         (printf "[INFO] starting user-background-sync-worker\n")
-         (let loop ()
-           (sync
-            (handle-evt (thread-receive-evt)
-                        (lambda (-)
-                          (printf "[INFO] stopping user-background-sync-worker\n")))
-            (handle-evt (alarm-evt (+ (current-inexact-milliseconds) user-sync-time-ms))
-                        (lambda (_)
-                          (run (update-feeds))
-                          (loop)))))))))
-
-  (lambda ()
-    (thread-send thd 'stop)))
+(define (make-user-background-sync-worker)
+  (make-worker #:name 'user-background-sync-worker
+               #:interval user-sync-time-ms
+               #:handler (lambda (_) (run (update-feeds)))))
