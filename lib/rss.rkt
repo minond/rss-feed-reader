@@ -3,6 +3,7 @@
 (require racket/match
          racket/string
          racket/format
+         threading
          xml
          xml/path
          net/url-string
@@ -54,7 +55,7 @@
                                                               (cdata-string (caddr part))
                                                               (list->string (cddr part) "")))]
                                   [else null])))
-                            (article link title date content)) entries))])
+                            (article link title date (normalize-unicode content))) entries))])
     (feed rss link title articles)))
 
 (define (process-rss rss xexpr)
@@ -79,7 +80,7 @@
                                                                   (cdata-string (caddr part))
                                                                   (list->string (cddr part) "")))]
                                   [else null])))
-                            (article link title date content)) items))])
+                            (article link title date (normalize-unicode content))) items))])
     (feed rss link title articles)))
 
 (define (string->datetime str)
@@ -96,3 +97,11 @@
 
 (define (list->string xs [sep " "])
   (string-join (map ~a xs) sep))
+
+;; XXX This is a total hack, need to fix this. Ideally by replacing exiting
+;; content extraction that comes from the xml/atom file to one that comes from
+;; a scraper.
+(define (normalize-unicode string)
+  (~> string
+      (string-replace "39" "'")
+      (string-replace "47" "/")))
