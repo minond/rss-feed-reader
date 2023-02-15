@@ -28,4 +28,6 @@
 (define (make-user-background-sync-worker)
   (make-worker #:name 'user-background-sync-worker
                #:interval user-sync-time-ms
-               #:handler (lambda (_) (run (update-feeds)))))
+               #:handler (lambda (_)
+                           (with-handlers ([exn:fail? (lambda (e) (log-error e))])
+                             (run (update-feeds))))))

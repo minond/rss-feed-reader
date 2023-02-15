@@ -15,9 +15,9 @@
          update-feed
          update-feeds)
 
-(struct create-feed (user-id rss) #:transparent)
-(struct update-feed (user-id feed-id) #:transparent)
-(struct update-feeds () #:transparent)
+(struct create-feed (user-id rss))
+(struct update-feed (user-id feed-id))
+(struct update-feeds ())
 
 (define (run cmd)
   (log-info "processing ~a" cmd)
