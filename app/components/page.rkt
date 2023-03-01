@@ -20,14 +20,14 @@
            (:meta 'charset: "utf-8")
            (:meta 'name: "viewport"
                   'content: "width=device-width, initial-scale=1.0")
-           (:title "Feeder")
+           (:title "RSS Feed Reader")
            (:style (:literal css))
            (:body
             (:header
              (:table
               (:tr
                (:td
-                (:a 'href: "/" "Feeder")
+                (:a 'href: "/" "RSS Feed Reader")
                 (let ([alert (read-flash 'alert)]
                       [notice (read-flash 'notice)])
                   (list (and alert (:flash 'alert alert))

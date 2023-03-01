@@ -18,7 +18,7 @@
 (define pool
   (connection-pool
    (lambda ()
-     (sqlite3-connect #:database "feeder.db" #:mode 'create))))
+     (sqlite3-connect #:database "data.db" #:mode 'create))))
 
 (current-database-connection (connection-pool-lease pool))
 
